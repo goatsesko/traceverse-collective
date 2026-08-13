@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as AuthorAuthorIdRouteImport } from './routes/author.$authorId'
+import { Route as BookBookIdRouteImport } from './routes/book.$bookId'
+import { Route as BookBookIdReadRouteImport } from './routes/book.$bookId.read'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +31,80 @@ const SearchRoute = SearchRouteImport.update({
   path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthorAuthorIdRoute = AuthorAuthorIdRouteImport.update({
+  id: '/author/$authorId',
+  path: '/author/$authorId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookBookIdRoute = BookBookIdRouteImport.update({
+  id: '/book/$bookId',
+  path: '/book/$bookId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookBookIdReadRoute = BookBookIdReadRouteImport.update({
+  id: '/read',
+  path: '/read',
+  getParentRoute: () => BookBookIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/library': typeof LibraryRoute
   '/search': typeof SearchRoute
+  '/author/$authorId': typeof AuthorAuthorIdRoute
+  '/book/$bookId': typeof BookBookIdRouteWithChildren
+  '/book/$bookId/read': typeof BookBookIdReadRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/library': typeof LibraryRoute
   '/search': typeof SearchRoute
+  '/author/$authorId': typeof AuthorAuthorIdRoute
+  '/book/$bookId': typeof BookBookIdRouteWithChildren
+  '/book/$bookId/read': typeof BookBookIdReadRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/library': typeof LibraryRoute
   '/search': typeof SearchRoute
+  '/author/$authorId': typeof AuthorAuthorIdRoute
+  '/book/$bookId': typeof BookBookIdRouteWithChildren
+  '/book/$bookId/read': typeof BookBookIdReadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/library' | '/search'
+  fullPaths:
+    | '/'
+    | '/library'
+    | '/search'
+    | '/author/$authorId'
+    | '/book/$bookId'
+    | '/book/$bookId/read'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/library' | '/search'
-  id: '__root__' | '/' | '/library' | '/search'
+  to:
+    | '/'
+    | '/library'
+    | '/search'
+    | '/author/$authorId'
+    | '/book/$bookId'
+    | '/book/$bookId/read'
+  id:
+    | '__root__'
+    | '/'
+    | '/library'
+    | '/search'
+    | '/author/$authorId'
+    | '/book/$bookId'
+    | '/book/$bookId/read'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LibraryRoute: typeof LibraryRoute
   SearchRoute: typeof SearchRoute
+  AuthorAuthorIdRoute: typeof AuthorAuthorIdRoute
+  BookBookIdRoute: typeof BookBookIdRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -82,13 +130,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/author/$authorId': {
+      id: '/author/$authorId'
+      path: '/author/$authorId'
+      fullPath: '/author/$authorId'
+      preLoaderRoute: typeof AuthorAuthorIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/book/$bookId': {
+      id: '/book/$bookId'
+      path: '/book/$bookId'
+      fullPath: '/book/$bookId'
+      preLoaderRoute: typeof BookBookIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/book/$bookId/read': {
+      id: '/book/$bookId/read'
+      path: '/read'
+      fullPath: '/book/$bookId/read'
+      preLoaderRoute: typeof BookBookIdReadRouteImport
+      parentRoute: typeof BookBookIdRoute
+    }
   }
 }
+
+interface BookBookIdRouteChildren {
+  BookBookIdReadRoute: typeof BookBookIdReadRoute
+}
+
+const BookBookIdRouteChildren: BookBookIdRouteChildren = {
+  BookBookIdReadRoute: BookBookIdReadRoute,
+}
+
+const BookBookIdRouteWithChildren = BookBookIdRoute._addFileChildren(
+  BookBookIdRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LibraryRoute: LibraryRoute,
   SearchRoute: SearchRoute,
+  AuthorAuthorIdRoute: AuthorAuthorIdRoute,
+  BookBookIdRoute: BookBookIdRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
