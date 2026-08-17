@@ -6,7 +6,8 @@ import { Rail } from "@/components/traceverse/Rail";
 import { Shell } from "@/components/traceverse/Shell";
 import { TraceAIPanel } from "@/components/traceverse/TraceAI";
 import { Button } from "@/components/ui/button";
-import { books, communities, feed, formatCount } from "@/data/traceverse";
+import { formatCount } from "@/data/traceverse";
+import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,10 +26,12 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(catalogueQueryOptions),
   component: HomePage,
 });
 
 function HomePage() {
+  const { books, communities, feed } = useCatalogue();
   const continueReading = books.filter((b) => typeof b.progress === "number");
   const trending = [...books].sort((a, b) => b.readers - a.readers);
   const fresh = [...books].sort((a, b) => b.year - a.year);

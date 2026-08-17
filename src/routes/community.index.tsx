@@ -3,7 +3,8 @@ import { Plus, Users } from "lucide-react";
 
 import { Shell } from "@/components/traceverse/Shell";
 import { Button } from "@/components/ui/button";
-import { communities, feed, formatCount } from "@/data/traceverse";
+import { formatCount } from "@/data/traceverse";
+import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
 
 export const Route = createFileRoute("/community/")({
   head: () => ({
@@ -21,10 +22,12 @@ export const Route = createFileRoute("/community/")({
       },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(catalogueQueryOptions),
   component: CommunityIndex,
 });
 
 function CommunityIndex() {
+  const { communities, feed } = useCatalogue();
   return (
     <Shell title="Community">
       <section className="px-4 pt-5">

@@ -4,7 +4,7 @@ import { Award, Flame, Clock, BookOpen } from "lucide-react";
 import { BookCard } from "@/components/traceverse/BookCard";
 import { Shell } from "@/components/traceverse/Shell";
 import { Button } from "@/components/ui/button";
-import { books } from "@/data/traceverse";
+import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -22,10 +22,12 @@ export const Route = createFileRoute("/profile")({
       },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(catalogueQueryOptions),
   component: ProfilePage,
 });
 
 function ProfilePage() {
+  const { books } = useCatalogue();
   return (
     <Shell title="Profile">
       <section className="px-4 pt-6">
