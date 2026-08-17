@@ -4,13 +4,18 @@ import { Heart, MessageCircle, Users } from "lucide-react";
 import { Shell } from "@/components/traceverse/Shell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { feed, formatCount, getBook, getCommunity } from "@/data/traceverse";
+import { formatCount } from "@/data/traceverse";
+import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
 
 export const Route = createFileRoute("/community/$communityId")({
-  loader: ({ params }) => {
-    const community = getCommunity(params.communityId);
+  loader: async ({ context, params }) => {
+    const catalogue = await context.queryClient.ensureQueryData(catalogueQueryOptions);
+    const community = catalogue.communities.find((c) => c.id === params.communityId);
     if (!community) throw notFound();
-    return { community, book: community.bookId ? getBook(community.bookId) : undefined };
+    const book = community.bookId
+      ? catalogue.books.find((b) => b.id === community.bookId)
+      : undefined;
+    return { community, book };
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
@@ -34,6 +39,7 @@ export const Route = createFileRoute("/community/$communityId")({
 
 function CommunityPage() {
   const { community, book } = Route.useLoaderData();
+  const { feed } = useCatalogue();
 
   return (
     <Shell title="Community">

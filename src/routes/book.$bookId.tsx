@@ -16,13 +16,16 @@ import { Shell } from "@/components/traceverse/Shell";
 import { TraceAIPanel } from "@/components/traceverse/TraceAI";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { authorOf, books, formatCount, getBook, getCommunity } from "@/data/traceverse";
+import { formatCount } from "@/data/traceverse";
+import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
 
 export const Route = createFileRoute("/book/$bookId")({
-  loader: ({ params }) => {
-    const book = getBook(params.bookId);
-    if (!book) throw notFound();
-    return { book, author: authorOf(book) };
+  loader: async ({ context, params }) => {
+    const catalogue = await context.queryClient.ensureQueryData(catalogueQueryOptions);
+    const book = catalogue.books.find((b) => b.id === params.bookId);
+    const author = book ? catalogue.authors.find((a) => a.id === book.authorId) : undefined;
+    if (!book || !author) throw notFound();
+    return { book, author };
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
@@ -47,7 +50,10 @@ export const Route = createFileRoute("/book/$bookId")({
 
 function BookPage() {
   const { book, author } = Route.useLoaderData();
-  const community = book.communityId ? getCommunity(book.communityId) : undefined;
+  const { books, communities } = useCatalogue();
+  const community = book.communityId
+    ? communities.find((c) => c.id === book.communityId)
+    : undefined;
   const related = books.filter((b) => b.id !== book.id && b.genre === book.genre).slice(0, 6);
   const more = books.filter((b) => b.id !== book.id).slice(0, 6);
 
