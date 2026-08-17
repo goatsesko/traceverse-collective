@@ -5,7 +5,8 @@ import { useState } from "react";
 import { BookCard } from "@/components/traceverse/BookCard";
 import { EmptyState } from "@/components/traceverse/EmptyState";
 import { Shell } from "@/components/traceverse/Shell";
-import { books, genres } from "@/data/traceverse";
+import { genres } from "@/data/traceverse";
+import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/library")({
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/library")({
       },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(catalogueQueryOptions),
   component: LibraryPage,
 });
 
@@ -37,6 +39,7 @@ const shelves = [
 ] as const;
 
 function LibraryPage() {
+  const { books } = useCatalogue();
   const [shelf, setShelf] = useState<(typeof shelves)[number]>("Currently Reading");
   const [genre, setGenre] = useState<string | null>(null);
 

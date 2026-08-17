@@ -12,14 +12,17 @@ import { useState } from "react";
 
 import { TraceAIPanel } from "@/components/traceverse/TraceAI";
 import { Button } from "@/components/ui/button";
-import { authorOf, formatCount, getBook } from "@/data/traceverse";
+import { formatCount } from "@/data/traceverse";
+import { catalogueQueryOptions } from "@/lib/catalogue-query";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/book/$bookId/read")({
-  loader: ({ params }) => {
-    const book = getBook(params.bookId);
-    if (!book) throw notFound();
-    return { book, author: authorOf(book) };
+  loader: async ({ context, params }) => {
+    const catalogue = await context.queryClient.ensureQueryData(catalogueQueryOptions);
+    const book = catalogue.books.find((b) => b.id === params.bookId);
+    const author = book ? catalogue.authors.find((a) => a.id === book.authorId) : undefined;
+    if (!book || !author) throw notFound();
+    return { book, author };
   },
   head: ({ loaderData }) => {
     if (!loaderData) {

@@ -6,11 +6,13 @@ import { EmptyState } from "@/components/traceverse/EmptyState";
 import { Shell } from "@/components/traceverse/Shell";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { books, formatCount, getAuthor } from "@/data/traceverse";
+import { formatCount } from "@/data/traceverse";
+import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
 
 export const Route = createFileRoute("/author/$authorId")({
-  loader: ({ params }) => {
-    const author = getAuthor(params.authorId);
+  loader: async ({ context, params }) => {
+    const catalogue = await context.queryClient.ensureQueryData(catalogueQueryOptions);
+    const author = catalogue.authors.find((a) => a.id === params.authorId);
     if (!author) throw notFound();
     return { author };
   },
@@ -37,6 +39,7 @@ export const Route = createFileRoute("/author/$authorId")({
 
 function AuthorPage() {
   const { author } = Route.useLoaderData();
+  const { books } = useCatalogue();
   const works = books.filter((b) => b.authorId === author.id);
 
   return (

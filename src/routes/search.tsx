@@ -5,7 +5,8 @@ import { useMemo, useState } from "react";
 import { BookCard } from "@/components/traceverse/BookCard";
 import { Shell } from "@/components/traceverse/Shell";
 import { Input } from "@/components/ui/input";
-import { authors, books, communities, formatCount } from "@/data/traceverse";
+import { formatCount } from "@/data/traceverse";
+import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
 
 export const Route = createFileRoute("/search")({
   head: () => ({
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/search")({
       },
     ],
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(catalogueQueryOptions),
   component: SearchPage,
 });
 
@@ -35,6 +37,7 @@ const examples = [
 ];
 
 function SearchPage() {
+  const { books, authors, communities } = useCatalogue();
   const [q, setQ] = useState("");
   const term = q.trim().toLowerCase();
 
