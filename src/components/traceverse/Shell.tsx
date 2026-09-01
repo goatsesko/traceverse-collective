@@ -55,17 +55,20 @@ export function Shell({
         </div>
       </header>
 
-      <main className="flex-1 pb-32">{children}</main>
+      <main className="flex-1 pb-[calc(env(safe-area-inset-bottom)+5.5rem)]">{children}</main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-5">
-        <div className="glass flex w-full max-w-md items-center justify-between rounded-3xl px-3 py-2 shadow-float">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="mx-auto flex w-full max-w-md items-center justify-between px-2 py-1.5">
           {tabs.slice(0, 2).map((t) => (
             <NavItem key={t.to} {...t} active={pathname === t.to} />
           ))}
           <Link
             to="/create"
             aria-label="Create"
-            className="grid size-13 -translate-y-4 place-items-center rounded-2xl trace-gradient text-primary-foreground shadow-glow animate-trace-pulse transition-transform duration-300 hover:scale-105"
+            className="grid size-12 place-items-center rounded-2xl trace-gradient text-primary-foreground transition-transform duration-300 hover:scale-105"
           >
             <Plus className="size-6" />
           </Link>
