@@ -2,11 +2,13 @@ import { Link } from "@tanstack/react-router";
 import { Star } from "lucide-react";
 
 import { BookCover } from "./BookCover";
-import { authorOf, formatCount, type Book } from "@/data/traceverse";
+import { formatCount, type Book } from "@/data/traceverse";
+import { useCatalogue } from "@/lib/catalogue-query";
 import { cn } from "@/lib/utils";
 
 export function BookCard({ book, className }: { book: Book; className?: string }) {
-  const author = authorOf(book);
+  const { authors } = useCatalogue();
+  const author = authors.find((a) => a.id === book.authorId);
   return (
     <Link
       to="/book/$bookId"
