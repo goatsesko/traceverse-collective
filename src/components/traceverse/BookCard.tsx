@@ -30,7 +30,7 @@ export function BookCard({ book, className }: { book: Book; className?: string }
         ) : null}
       </div>
       <p className="mt-2 truncate text-sm font-semibold">{book.title}</p>
-      <p className="truncate text-xs text-muted-foreground">{author.name}</p>
+      <p className="truncate text-xs text-muted-foreground">{author?.name ?? "Unknown author"}</p>
       <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
         <Star className="size-3 fill-current text-accent" />
         {book.rating.toFixed(1)}
