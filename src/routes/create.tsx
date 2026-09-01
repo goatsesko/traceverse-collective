@@ -142,7 +142,25 @@ function CreatePage() {
             Drop a PDF, EPUB, DOCX, TXT, Markdown or HTML file. TraceVerse keeps the original safe
             and builds a responsive native edition your readers actually read.
           </p>
-          <Button className="rounded-2xl">Choose a file</Button>
+          <input
+            ref={inputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.epub,.docx,.txt,.md,.markdown,.html,.htm"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void onFile(f);
+            }}
+          />
+          <Button
+            className="rounded-2xl"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
+            {busy ? "Working…" : "Choose a file"}
+          </Button>
+          {status ? <p className="text-[11px] text-primary">{status}</p> : null}
           <p className="text-[11px] text-muted-foreground">
             You confirm you hold the rights to publish this work.
           </p>
