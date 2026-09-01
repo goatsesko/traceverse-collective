@@ -1,5 +1,8 @@
+import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, Send } from "lucide-react";
 import { useState } from "react";
+
+import { askTraceAI, type TraceAITask } from "@/lib/trace-ai.functions";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
