@@ -11,10 +11,14 @@ import {
   UploadCloud,
   VenetianMask,
 } from "lucide-react";
-import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useRef, useState } from "react";
 
 import { Shell } from "@/components/traceverse/Shell";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { processUpload } from "@/lib/uploads.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/create")({
