@@ -62,6 +62,47 @@ const pipeline = [
 
 function CreatePage() {
   const [kind, setKind] = useState("Book");
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+  const navigate = Route.useNavigate();
+  const run = useServerFn(processUpload);
+
+  const onFile = async (file: File) => {
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    setBusy(true);
+    setStatus(`UPLOADED · storing ${file.name} securely…`);
+    try {
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${user.id}/${Date.now()}-${safe}`;
+      const { error } = await supabase.storage.from("book-uploads").upload(path, file);
+      if (error) throw error;
+
+      setStatus("EXTRACTING · building your native edition…");
+      const res = await run({
+        data: {
+          path,
+          filename: file.name,
+          mime: file.type,
+          sizeBytes: file.size,
+          title: file.name.replace(/\.[^.]+$/, ""),
+          kind: kind.toLowerCase(),
+        },
+      });
+      setStatus(`${res.status === "published" ? "PUBLISHED" : "QUEUED"} · ${res.message}`);
+      if (res.status === "published") {
+        navigate({ to: "/book/$bookId", params: { bookId: res.bookId } });
+      }
+    } catch (err) {
+      setStatus(err instanceof Error ? `Upload failed — ${err.message}` : "Upload failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Shell title="Create">
