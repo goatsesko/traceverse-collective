@@ -11,10 +11,14 @@ import {
   UploadCloud,
   VenetianMask,
 } from "lucide-react";
-import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useRef, useState } from "react";
 
 import { Shell } from "@/components/traceverse/Shell";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { processUpload } from "@/lib/uploads.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/create")({
@@ -58,6 +62,47 @@ const pipeline = [
 
 function CreatePage() {
   const [kind, setKind] = useState("Book");
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+  const navigate = Route.useNavigate();
+  const run = useServerFn(processUpload);
+
+  const onFile = async (file: File) => {
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    setBusy(true);
+    setStatus(`UPLOADED · storing ${file.name} securely…`);
+    try {
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${user.id}/${Date.now()}-${safe}`;
+      const { error } = await supabase.storage.from("book-uploads").upload(path, file);
+      if (error) throw error;
+
+      setStatus("EXTRACTING · building your native edition…");
+      const res = await run({
+        data: {
+          path,
+          filename: file.name,
+          mime: file.type,
+          sizeBytes: file.size,
+          title: file.name.replace(/\.[^.]+$/, ""),
+          kind: kind.toLowerCase(),
+        },
+      });
+      setStatus(`${res.status === "published" ? "PUBLISHED" : "QUEUED"} · ${res.message}`);
+      if (res.status === "published") {
+        navigate({ to: "/book/$bookId", params: { bookId: res.bookId } });
+      }
+    } catch (err) {
+      setStatus(err instanceof Error ? `Upload failed — ${err.message}` : "Upload failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Shell title="Create">
@@ -97,7 +142,25 @@ function CreatePage() {
             Drop a PDF, EPUB, DOCX, TXT, Markdown or HTML file. TraceVerse keeps the original safe
             and builds a responsive native edition your readers actually read.
           </p>
-          <Button className="rounded-2xl">Choose a file</Button>
+          <input
+            ref={inputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.epub,.docx,.txt,.md,.markdown,.html,.htm"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void onFile(f);
+            }}
+          />
+          <Button
+            className="rounded-2xl"
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+          >
+            {busy ? "Working…" : "Choose a file"}
+          </Button>
+          {status ? <p className="text-[11px] text-primary">{status}</p> : null}
           <p className="text-[11px] text-muted-foreground">
             You confirm you hold the rights to publish this work.
           </p>

@@ -1,5 +1,8 @@
+import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, Send } from "lucide-react";
 import { useState } from "react";
+
+import { askTraceAI, type TraceAITask } from "@/lib/trace-ai.functions";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,25 +23,46 @@ export function TraceAIPanel({
   context,
   suggestions,
   trigger,
+  task = "chat",
+  passage,
+  contextRef,
 }: {
   context: string;
   suggestions: string[];
   trigger?: React.ReactNode;
+  task?: TraceAITask;
+  passage?: string;
+  contextRef?: string;
 }) {
   const [messages, setMessages] = useState<{ role: "user" | "ai"; text: string }[]>([]);
   const [value, setValue] = useState("");
+  const [pending, setPending] = useState(false);
+  const send = useServerFn(askTraceAI);
 
-  const ask = (q: string) => {
-    if (!q.trim()) return;
-    setMessages((m) => [
-      ...m,
-      { role: "user", text: q },
-      {
-        role: "ai",
-        text: `Trace AI will answer this using retrieval over “${context}”. Connect the Trace AI gateway to enable live responses.`,
-      },
-    ]);
+  const ask = async (q: string) => {
+    if (!q.trim() || pending) return;
+    setMessages((m) => [...m, { role: "user", text: q }]);
     setValue("");
+    setPending(true);
+    try {
+      const res = await send({
+        data: {
+          task,
+          prompt: q,
+          context,
+          ...(passage ? { passage } : {}),
+          ...(contextRef ? { contextRef } : {}),
+        },
+      });
+      setMessages((m) => [...m, { role: "ai", text: res.text }]);
+    } catch {
+      setMessages((m) => [
+        ...m,
+        { role: "ai", text: "Trace AI couldn't answer that just now. Please try again." },
+      ]);
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
@@ -82,13 +106,18 @@ export function TraceAIPanel({
                 className={
                   m.role === "user"
                     ? "ml-auto max-w-[80%] rounded-2xl trace-gradient px-3 py-2 text-sm text-primary-foreground"
-                    : "max-w-[85%] rounded-2xl bg-secondary/60 px-3 py-2 text-sm"
+                    : "max-w-[85%] rounded-2xl bg-secondary/60 px-3 py-2 text-sm whitespace-pre-wrap"
                 }
               >
                 {m.text}
               </div>
             ))
           )}
+          {pending ? (
+            <div className="max-w-[85%] rounded-2xl bg-secondary/60 px-3 py-2 text-sm text-muted-foreground">
+              Trace AI is thinking…
+            </div>
+          ) : null}
         </div>
 
         <form
