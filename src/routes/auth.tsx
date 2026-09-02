@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
+import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/auth")({
@@ -42,6 +43,25 @@ function AuthPage() {
   useEffect(() => {
     if (!loading && user) navigate({ to: "/" });
   }, [loading, user, navigate]);
+
+  const signInWithGoogle = async () => {
+    setBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) {
+        toast.error("Google sign-in failed. Please try again.");
+        return;
+      }
+      if (result.redirected) return;
+      navigate({ to: "/profile" });
+    } catch {
+      toast.error("Google sign-in failed. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
