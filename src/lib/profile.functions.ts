@@ -101,11 +101,16 @@ export const updateMyProfile = createServerFn({ method: "POST" })
       .parse(data),
   )
   .handler(async ({ context, data }) => {
-    const patch: Record<string, string> = {};
-    if (data.displayName !== undefined) patch['display_name'] = data.displayName;
-    if (data.handle !== undefined) patch['handle'] = data.handle.toLowerCase();
-    if (data.bio !== undefined) patch['bio'] = data.bio;
-    if (data.country !== undefined) patch['country'] = data.country;
+    const patch: {
+      display_name?: string;
+      handle?: string;
+      bio?: string;
+      country?: string;
+    } = {};
+    if (data.displayName !== undefined) patch.display_name = data.displayName;
+    if (data.handle !== undefined) patch.handle = data.handle.toLowerCase();
+    if (data.bio !== undefined) patch.bio = data.bio;
+    if (data.country !== undefined) patch.country = data.country;
 
     const { error } = await context.supabase.from("profiles").update(patch).eq("id", context.userId);
     if (error) throw new Error(error.message);
