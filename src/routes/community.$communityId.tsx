@@ -119,11 +119,18 @@ function CommunityPage() {
         <h1 className="font-display text-2xl font-semibold">{community.name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{community.description}</p>
         <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-          <Users className="size-3" /> {formatCount(community.members)} members ·{" "}
-          {formatCount(community.posts)} posts
+          <Users className="size-3" /> {formatCount(memberCount)} members ·{" "}
+          {formatCount(feed.length)} posts
         </p>
         <div className="mt-4 flex gap-2">
-          <Button className="rounded-2xl shadow-glow">Join</Button>
+          <Button
+            className="rounded-2xl shadow-glow"
+            variant={isMember ? "secondary" : "default"}
+            disabled={busy}
+            onClick={() => void toggleJoin()}
+          >
+            {isMember ? "Joined" : "Join"}
+          </Button>
           {book ? (
             <Button variant="secondary" className="rounded-2xl" asChild>
               <Link to="/book/$bookId" params={{ bookId: book.id }}>
