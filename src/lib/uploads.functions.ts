@@ -152,24 +152,27 @@ export const processUpload = createServerFn({ method: "POST" })
     });
     if (bookErr) throw bookErr;
 
-    if (!isTextual) {
-      const message =
-        "Original stored securely. PDF, EPUB and DOCX conversion is queued — you'll be notified when the native edition is ready.";
+    const fail = async (message: string) => {
       await supabaseAdmin
         .from("books")
-        .update({ processing_error: null, status: "draft" })
+        .update({ processing_error: message, status: "draft" })
         .eq("id", bookId);
       await supabaseAdmin
         .from("uploads")
-        .update({ status: "queued", book_id: bookId })
+        .update({ status: "failed", book_id: bookId })
         .eq("id", uploadRow.id);
       await supabaseAdmin.from("notifications").insert({
         user_id: userId,
         kind: "upload",
-        title: "Upload received",
-        body: `${data.filename} is queued for conversion.`,
+        title: "Upload needs attention",
+        body: `${data.filename}: ${message}`,
         link: `/book/${bookId}`,
       });
+    };
+
+    if (!isTextual) {
+      const message = "Unsupported file type. Use PDF, EPUB, DOCX, TXT, Markdown or HTML.";
+      await fail(message);
       return { bookId, chapters: 0, status: "processing", message };
     }
 
@@ -178,8 +181,28 @@ export const processUpload = createServerFn({ method: "POST" })
       .download(data.path);
     if (dlErr || !file) throw dlErr ?? new Error("Could not read the uploaded file");
 
-    const rawText = await file.text();
-    const text = /\.html?$/i.test(data.filename) ? stripHtml(rawText) : rawText;
+    let text = "";
+    try {
+      const extracted = await extractUploadText(
+        await file.arrayBuffer(),
+        data.filename,
+        data.mime,
+      );
+      text = extracted.text;
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "We could not read text from this file.";
+      await fail(message);
+      return { bookId, chapters: 0, status: "processing", message };
+    }
+
+    if (text.replace(/\s/g, "").length < 200) {
+      const message =
+        "No readable text found — this file may be a scanned image. Try a text-based PDF or DOCX.";
+      await fail(message);
+      return { bookId, chapters: 0, status: "processing", message };
+    }
+
     const chapters = toChapters(text).slice(0, 60);
 
     const rows = chapters.map((c, i) => {
