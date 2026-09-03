@@ -120,8 +120,10 @@ export const processUpload = createServerFn({ method: "POST" })
       await supabaseAdmin.from("profiles").update({ author_id: authorId }).eq("id", userId);
     }
 
+    const { detectKind, extractUploadText } = await import("./extract.server");
     const bookId = `b-${crypto.randomUUID().slice(0, 12)}`;
-    const isTextual = TEXTUAL.test(data.filename);
+    const kindOfFile = detectKind(data.filename, data.mime);
+    const isTextual = kindOfFile !== "unsupported";
 
     const { error: bookErr } = await supabaseAdmin.from("books").insert({
       id: bookId,
