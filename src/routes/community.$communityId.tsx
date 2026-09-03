@@ -1,11 +1,22 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Heart, MessageCircle, Users } from "lucide-react";
+import { useState } from "react";
 
 import { Shell } from "@/components/traceverse/Shell";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCount } from "@/data/traceverse";
-import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
+import { catalogueQueryOptions } from "@/lib/catalogue-query";
+import {
+  createCommunityPost,
+  getCommunityRoom,
+  getMyMembership,
+  setMembership,
+} from "@/lib/community.functions";
 
 export const Route = createFileRoute("/community/$communityId")({
   loader: async ({ context, params }) => {
@@ -39,7 +50,62 @@ export const Route = createFileRoute("/community/$communityId")({
 
 function CommunityPage() {
   const { community, book } = Route.useLoaderData();
-  const { feed } = useCatalogue();
+  const { user } = useAuth();
+  const navigate = Route.useNavigate();
+  const qc = useQueryClient();
+  const roomFn = useServerFn(getCommunityRoom);
+  const membershipFn = useServerFn(getMyMembership);
+  const toggleFn = useServerFn(setMembership);
+  const postFn = useServerFn(createCommunityPost);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const roomKey = ["community-room", community.id];
+  const { data: room } = useQuery({
+    queryKey: roomKey,
+    queryFn: () => roomFn({ data: { communityId: community.id } }),
+  });
+  const { data: membership } = useQuery({
+    queryKey: ["community-membership", community.id, user?.id ?? "anon"],
+    queryFn: () => membershipFn({ data: { communityId: community.id } }),
+    enabled: Boolean(user),
+  });
+
+  const feed = room?.posts ?? [];
+  const memberCount = room?.members ?? community.members;
+  const isMember = membership?.member ?? false;
+
+  const refresh = async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: roomKey }),
+      qc.invalidateQueries({ queryKey: ["community-membership", community.id] }),
+      qc.invalidateQueries({ queryKey: catalogueQueryOptions.queryKey }),
+    ]);
+  };
+
+  const toggleJoin = async () => {
+    if (!user) return navigate({ to: "/auth" });
+    setBusy(true);
+    try {
+      await toggleFn({ data: { communityId: community.id, join: !isMember } });
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitPost = async () => {
+    if (!user) return navigate({ to: "/auth" });
+    if (!draft.trim() || busy) return;
+    setBusy(true);
+    try {
+      await postFn({ data: { communityId: community.id, body: draft } });
+      setDraft("");
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Shell title="Community">
@@ -53,11 +119,18 @@ function CommunityPage() {
         <h1 className="font-display text-2xl font-semibold">{community.name}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{community.description}</p>
         <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-          <Users className="size-3" /> {formatCount(community.members)} members ·{" "}
-          {formatCount(community.posts)} posts
+          <Users className="size-3" /> {formatCount(memberCount)} members ·{" "}
+          {formatCount(feed.length)} posts
         </p>
         <div className="mt-4 flex gap-2">
-          <Button className="rounded-2xl shadow-glow">Join</Button>
+          <Button
+            className="rounded-2xl shadow-glow"
+            variant={isMember ? "secondary" : "default"}
+            disabled={busy}
+            onClick={() => void toggleJoin()}
+          >
+            {isMember ? "Joined" : "Join"}
+          </Button>
           {book ? (
             <Button variant="secondary" className="rounded-2xl" asChild>
               <Link to="/book/$bookId" params={{ bookId: book.id }}>
@@ -79,6 +152,26 @@ function CommunityPage() {
           </TabsList>
 
           <TabsContent value="discussions" className="mt-4 space-y-3">
+            <div className="glass space-y-3 rounded-3xl p-4">
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={user ? "Start a discussion…" : "Sign in to join the conversation"}
+                className="min-h-20 rounded-2xl bg-secondary/50"
+              />
+              <Button
+                className="rounded-2xl"
+                disabled={busy || !draft.trim()}
+                onClick={() => void submitPost()}
+              >
+                {busy ? "Posting…" : "Post"}
+              </Button>
+            </div>
+            {feed.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No discussions yet — be the first to leave a trace.
+              </p>
+            ) : null}
             {feed.map((p) => (
               <article key={p.id} className="glass rounded-3xl p-4">
                 <p className="text-sm font-semibold">{p.author}</p>

@@ -1,10 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Plus, Users } from "lucide-react";
+import { useState } from "react";
 
 import { Shell } from "@/components/traceverse/Shell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCount } from "@/data/traceverse";
 import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
+import { createCommunity } from "@/lib/community.functions";
 
 export const Route = createFileRoute("/community/")({
   head: () => ({
@@ -28,6 +35,34 @@ export const Route = createFileRoute("/community/")({
 
 function CommunityIndex() {
   const { communities, feed } = useCatalogue();
+  const { user } = useAuth();
+  const navigate = Route.useNavigate();
+  const qc = useQueryClient();
+  const create = useServerFn(createCommunity);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!name.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await create({ data: { name, description } });
+      await qc.invalidateQueries({ queryKey: ["catalogue"] });
+      setOpen(false);
+      setName("");
+      setDescription("");
+      navigate({ to: "/community/$communityId", params: { communityId: res.id } });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create the community.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <Shell title="Community">
       <section className="px-4 pt-5">
@@ -35,9 +70,33 @@ function CommunityIndex() {
         <p className="mt-1 text-sm text-muted-foreground">
           Book communities, author circles and interest groups.
         </p>
-        <Button variant="secondary" className="mt-4 rounded-2xl">
+        <Button
+          variant="secondary"
+          className="mt-4 rounded-2xl"
+          onClick={() => (user ? setOpen((v) => !v) : navigate({ to: "/auth" }))}
+        >
           <Plus className="size-4" /> Create a community
         </Button>
+        {open ? (
+          <div className="glass mt-3 space-y-3 rounded-3xl p-4">
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Community name"
+              className="rounded-2xl bg-secondary/50"
+            />
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What is this circle about?"
+              className="min-h-20 rounded-2xl bg-secondary/50"
+            />
+            {error ? <p className="text-xs text-destructive">{error}</p> : null}
+            <Button className="rounded-2xl" disabled={busy} onClick={() => void submit()}>
+              {busy ? "Creating…" : "Create"}
+            </Button>
+          </div>
+        ) : null}
       </section>
 
       <section className="mt-6 grid gap-3 px-4 sm:grid-cols-2">
