@@ -1,10 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Plus, Users } from "lucide-react";
+import { useState } from "react";
 
 import { Shell } from "@/components/traceverse/Shell";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCount } from "@/data/traceverse";
 import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
+import { createCommunity } from "@/lib/community.functions";
 
 export const Route = createFileRoute("/community/")({
   head: () => ({
