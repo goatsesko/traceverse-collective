@@ -50,7 +50,62 @@ export const Route = createFileRoute("/community/$communityId")({
 
 function CommunityPage() {
   const { community, book } = Route.useLoaderData();
-  const { feed } = useCatalogue();
+  const { user } = useAuth();
+  const navigate = Route.useNavigate();
+  const qc = useQueryClient();
+  const roomFn = useServerFn(getCommunityRoom);
+  const membershipFn = useServerFn(getMyMembership);
+  const toggleFn = useServerFn(setMembership);
+  const postFn = useServerFn(createCommunityPost);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const roomKey = ["community-room", community.id];
+  const { data: room } = useQuery({
+    queryKey: roomKey,
+    queryFn: () => roomFn({ data: { communityId: community.id } }),
+  });
+  const { data: membership } = useQuery({
+    queryKey: ["community-membership", community.id, user?.id ?? "anon"],
+    queryFn: () => membershipFn({ data: { communityId: community.id } }),
+    enabled: Boolean(user),
+  });
+
+  const feed = room?.posts ?? [];
+  const memberCount = room?.members ?? community.members;
+  const isMember = membership?.member ?? false;
+
+  const refresh = async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: roomKey }),
+      qc.invalidateQueries({ queryKey: ["community-membership", community.id] }),
+      qc.invalidateQueries({ queryKey: catalogueQueryOptions.queryKey }),
+    ]);
+  };
+
+  const toggleJoin = async () => {
+    if (!user) return navigate({ to: "/auth" });
+    setBusy(true);
+    try {
+      await toggleFn({ data: { communityId: community.id, join: !isMember } });
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitPost = async () => {
+    if (!user) return navigate({ to: "/auth" });
+    if (!draft.trim() || busy) return;
+    setBusy(true);
+    try {
+      await postFn({ data: { communityId: community.id, body: draft } });
+      setDraft("");
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <Shell title="Community">
