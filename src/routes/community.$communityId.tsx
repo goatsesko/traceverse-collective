@@ -152,6 +152,26 @@ function CommunityPage() {
           </TabsList>
 
           <TabsContent value="discussions" className="mt-4 space-y-3">
+            <div className="glass space-y-3 rounded-3xl p-4">
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={user ? "Start a discussion…" : "Sign in to join the conversation"}
+                className="min-h-20 rounded-2xl bg-secondary/50"
+              />
+              <Button
+                className="rounded-2xl"
+                disabled={busy || !draft.trim()}
+                onClick={() => void submitPost()}
+              >
+                {busy ? "Posting…" : "Post"}
+              </Button>
+            </div>
+            {feed.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No discussions yet — be the first to leave a trace.
+              </p>
+            ) : null}
             {feed.map((p) => (
               <article key={p.id} className="glass rounded-3xl p-4">
                 <p className="text-sm font-semibold">{p.author}</p>
