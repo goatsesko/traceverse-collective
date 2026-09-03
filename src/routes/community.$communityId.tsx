@@ -1,11 +1,22 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { Heart, MessageCircle, Users } from "lucide-react";
+import { useState } from "react";
 
 import { Shell } from "@/components/traceverse/Shell";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/useAuth";
 import { formatCount } from "@/data/traceverse";
-import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
+import { catalogueQueryOptions } from "@/lib/catalogue-query";
+import {
+  createCommunityPost,
+  getCommunityRoom,
+  getMyMembership,
+  setMembership,
+} from "@/lib/community.functions";
 
 export const Route = createFileRoute("/community/$communityId")({
   loader: async ({ context, params }) => {
