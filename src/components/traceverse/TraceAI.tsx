@@ -84,8 +84,7 @@ export function TraceAIPanel({
         side="bottom"
         className="flex h-[80dvh] flex-col rounded-t-3xl border-x-0 bg-background p-0 pt-4"
       >
-
-        <SheetHeader>
+        <SheetHeader className="px-4 text-left">
           <SheetTitle className="flex items-center gap-2 font-display">
             <span className="grid size-7 place-items-center rounded-lg trace-gradient text-primary-foreground">
               <Sparkles className="size-3.5" />
