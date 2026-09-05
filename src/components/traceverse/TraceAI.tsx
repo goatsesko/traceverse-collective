@@ -38,6 +38,12 @@ export function TraceAIPanel({
   const [value, setValue] = useState("");
   const [pending, setPending] = useState(false);
   const send = useServerFn(askTraceAI);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, pending]);
+
 
   const ask = async (q: string) => {
     if (!q.trim() || pending) return;
