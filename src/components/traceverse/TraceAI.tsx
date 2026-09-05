@@ -1,6 +1,6 @@
 import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, Send } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { askTraceAI, type TraceAITask } from "@/lib/trace-ai.functions";
 
@@ -88,7 +88,7 @@ export function TraceAIPanel({
           <SheetDescription>Reading context: {context}</SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 space-y-3 overflow-y-auto px-4">
+        <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-2">
           {messages.length === 0 ? (
             <div className="flex flex-wrap gap-2">
               {suggestions.map((s) => (
@@ -124,7 +124,7 @@ export function TraceAIPanel({
         </div>
 
         <form
-          className="flex items-center gap-2 p-4"
+          className="flex shrink-0 items-center gap-2 border-t border-border bg-background/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           onSubmit={(e) => {
             e.preventDefault();
             ask(value);
