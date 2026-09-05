@@ -11,6 +11,7 @@ import {
   UploadCloud,
   VenetianMask,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useRef, useState } from "react";
 
@@ -68,6 +69,7 @@ function CreatePage() {
   const { user } = useAuth();
   const navigate = Route.useNavigate();
   const run = useServerFn(processUpload);
+  const qc = useQueryClient();
 
   const onFile = async (file: File) => {
     if (!user) {
@@ -94,6 +96,7 @@ function CreatePage() {
         },
       });
       setStatus(`${res.status === "published" ? "PUBLISHED" : "QUEUED"} · ${res.message}`);
+      await qc.invalidateQueries({ queryKey: ["catalogue"] });
       if (res.status === "published") {
         navigate({ to: "/book/$bookId", params: { bookId: res.bookId } });
       }

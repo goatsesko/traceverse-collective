@@ -1,6 +1,6 @@
 import { useServerFn } from "@tanstack/react-start";
 import { Sparkles, Send } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { askTraceAI, type TraceAITask } from "@/lib/trace-ai.functions";
 
@@ -38,6 +38,12 @@ export function TraceAIPanel({
   const [value, setValue] = useState("");
   const [pending, setPending] = useState(false);
   const send = useServerFn(askTraceAI);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, pending]);
+
 
   const ask = async (q: string) => {
     if (!q.trim() || pending) return;
@@ -74,8 +80,11 @@ export function TraceAIPanel({
           </Button>
         )}
       </SheetTrigger>
-      <SheetContent side="bottom" className="glass max-h-[80vh] rounded-t-3xl border-x-0">
-        <SheetHeader>
+      <SheetContent
+        side="bottom"
+        className="flex h-[80dvh] flex-col rounded-t-3xl border-x-0 bg-background p-0 pt-4"
+      >
+        <SheetHeader className="px-4 text-left">
           <SheetTitle className="flex items-center gap-2 font-display">
             <span className="grid size-7 place-items-center rounded-lg trace-gradient text-primary-foreground">
               <Sparkles className="size-3.5" />
@@ -85,7 +94,7 @@ export function TraceAIPanel({
           <SheetDescription>Reading context: {context}</SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 space-y-3 overflow-y-auto px-4">
+        <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-2">
           {messages.length === 0 ? (
             <div className="flex flex-wrap gap-2">
               {suggestions.map((s) => (
@@ -121,7 +130,7 @@ export function TraceAIPanel({
         </div>
 
         <form
-          className="flex items-center gap-2 p-4"
+          className="flex shrink-0 items-center gap-2 border-t border-border bg-background/80 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
           onSubmit={(e) => {
             e.preventDefault();
             ask(value);
