@@ -96,6 +96,7 @@ function CreatePage() {
         },
       });
       setStatus(`${res.status === "published" ? "PUBLISHED" : "QUEUED"} · ${res.message}`);
+      await qc.invalidateQueries({ queryKey: ["catalogue"] });
       if (res.status === "published") {
         navigate({ to: "/book/$bookId", params: { bookId: res.bookId } });
       }
