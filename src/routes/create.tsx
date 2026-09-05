@@ -69,6 +69,7 @@ function CreatePage() {
   const { user } = useAuth();
   const navigate = Route.useNavigate();
   const run = useServerFn(processUpload);
+  const qc = useQueryClient();
 
   const onFile = async (file: File) => {
     if (!user) {
