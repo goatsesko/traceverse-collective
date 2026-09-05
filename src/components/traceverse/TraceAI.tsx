@@ -82,8 +82,9 @@ export function TraceAIPanel({
       </SheetTrigger>
       <SheetContent
         side="bottom"
-        className="glass flex h-[80dvh] flex-col rounded-t-3xl border-x-0 p-0 pt-4"
+        className="flex h-[80dvh] flex-col rounded-t-3xl border-x-0 bg-background p-0 pt-4"
       >
+
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2 font-display">
             <span className="grid size-7 place-items-center rounded-lg trace-gradient text-primary-foreground">
