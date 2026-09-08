@@ -1,0 +1,323 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { BookOpen, CheckCircle2, Sparkles, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { BookCover } from "@/components/traceverse/BookCover";
+import { Shell } from "@/components/traceverse/Shell";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  createBookCommunity,
+  getDraftBook,
+  publishBook,
+  updateDraftMetadata,
+} from "@/lib/publish.functions";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/publish/$bookId")({
+  head: () => ({
+    meta: [
+      { title: "Review & publish — TraceVerse" },
+      {
+        name: "description",
+        content:
+          "Preview your imported book, edit its details and publish it to TraceVerse readers.",
+      },
+      { property: "og:title", content: "Review & publish — TraceVerse" },
+      {
+        property: "og:description",
+        content: "Check chapters, set genre, language and age rating, then go live.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
+  component: PublishPage,
+});
+
+const ratings = ["everyone", "teen", "young-adult", "mature"] as const;
+const hues = [280, 320, 250, 200, 160, 30];
+
+function PublishPage() {
+  const { bookId } = Route.useParams();
+  const navigate = Route.useNavigate();
+  const qc = useQueryClient();
+  const { user, loading } = useAuth();
+
+  const load = useServerFn(getDraftBook);
+  const saveFn = useServerFn(updateDraftMetadata);
+  const publishFn = useServerFn(publishBook);
+  const communityFn = useServerFn(createBookCommunity);
+
+  const draft = useQuery({
+    queryKey: ["draft-book", bookId],
+    queryFn: () => load({ data: { bookId } }),
+    enabled: Boolean(user),
+  });
+
+  const [form, setForm] = useState({
+    title: "",
+    authorName: "",
+    summary: "",
+    genre: "",
+    language: "",
+    ageRating: "everyone",
+    hue: 280,
+  });
+  const [chapterIdx, setChapterIdx] = useState(0);
+  const [askCommunity, setAskCommunity] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!draft.data) return;
+    setForm({
+      title: draft.data.title,
+      authorName: draft.data.authorName,
+      summary: draft.data.summary,
+      genre: draft.data.genre,
+      language: draft.data.language,
+      ageRating: draft.data.ageRating,
+      hue: draft.data.hue,
+    });
+  }, [draft.data]);
+
+  useEffect(() => {
+    if (!loading && !user) navigate({ to: "/auth" });
+  }, [loading, user, navigate]);
+
+  const save = useMutation({
+    mutationFn: () => saveFn({ data: { bookId, ...form } }),
+    onSuccess: async () => {
+      setNote("Details saved.");
+      await qc.invalidateQueries({ queryKey: ["draft-book", bookId] });
+    },
+    onError: (e: Error) => setNote(e.message),
+  });
+
+  const publish = useMutation({
+    mutationFn: async () => {
+      await saveFn({ data: { bookId, ...form } });
+      return publishFn({ data: { bookId } });
+    },
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["catalogue"] });
+      setAskCommunity(true);
+    },
+    onError: (e: Error) => setNote(e.message),
+  });
+
+  const makeCommunity = useMutation({
+    mutationFn: () => communityFn({ data: { bookId } }),
+    onSuccess: async (res) => {
+      await qc.invalidateQueries({ queryKey: ["catalogue"] });
+      navigate({ to: "/community/$communityId", params: { communityId: res.communityId } });
+    },
+    onError: (e: Error) => setNote(e.message),
+  });
+
+  const book = draft.data;
+  const chapter = book?.chapters[chapterIdx];
+
+  return (
+    <Shell title="Review & publish">
+      {draft.isLoading || !book ? (
+        <section className="px-4 pt-6">
+          <p className="text-sm text-muted-foreground">
+            {draft.error instanceof Error
+              ? draft.error.message
+              : "Loading your processed book…"}
+          </p>
+        </section>
+      ) : askCommunity ? (
+        <section className="px-4 pt-8">
+          <div className="glass rounded-3xl p-6 text-center">
+            <span className="mx-auto grid size-14 place-items-center rounded-2xl trace-gradient text-primary-foreground shadow-glow">
+              <CheckCircle2 className="size-6" />
+            </span>
+            <h1 className="mt-4 font-display text-xl font-semibold">{book.title} is live.</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Would you like us to create a community for this book?
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              <Button
+                className="rounded-2xl"
+                disabled={makeCommunity.isPending}
+                onClick={() => makeCommunity.mutate()}
+              >
+                <Users className="size-4" /> Create Community
+              </Button>
+              <Button
+                variant="secondary"
+                className="rounded-2xl"
+                onClick={() => navigate({ to: "/book/$bookId", params: { bookId } })}
+              >
+                Maybe Later
+              </Button>
+            </div>
+            {note ? <p className="mt-3 text-xs text-primary">{note}</p> : null}
+          </div>
+        </section>
+      ) : (
+        <>
+          <section className="flex gap-4 px-4 pt-5">
+            <div className="w-24 shrink-0">
+              <BookCover title={form.title} author={form.authorName} hue={form.hue} />
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-display text-xl font-semibold">Review your import</h1>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {book.chapters.length} chapters detected · original file stored securely.
+              </p>
+              {book.processingError ? (
+                <p className="mt-2 text-xs text-destructive">{book.processingError}</p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {hues.map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    aria-label={`Cover colour ${h}`}
+                    onClick={() => setForm((f) => ({ ...f, hue: h }))}
+                    className={cn(
+                      "size-7 rounded-full border",
+                      form.hue === h ? "border-primary" : "border-border",
+                    )}
+                    style={{ background: `oklch(0.55 0.2 ${h})` }}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-6 px-4">
+            <h2 className="font-display text-lg font-semibold">Book details</h2>
+            <div className="mt-3 space-y-3">
+              <Input
+                value={form.title}
+                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                placeholder="Title"
+                className="rounded-2xl bg-secondary/50"
+              />
+              <Input
+                value={form.authorName}
+                onChange={(e) => setForm((f) => ({ ...f, authorName: e.target.value }))}
+                placeholder="Author name"
+                className="rounded-2xl bg-secondary/50"
+              />
+              <Textarea
+                value={form.summary}
+                onChange={(e) => setForm((f) => ({ ...f, summary: e.target.value }))}
+                placeholder="Description"
+                rows={4}
+                className="rounded-2xl bg-secondary/50"
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  value={form.genre}
+                  onChange={(e) => setForm((f) => ({ ...f, genre: e.target.value }))}
+                  placeholder="Genre"
+                  className="rounded-2xl bg-secondary/50"
+                />
+                <Input
+                  value={form.language}
+                  onChange={(e) => setForm((f) => ({ ...f, language: e.target.value }))}
+                  placeholder="Language"
+                  className="rounded-2xl bg-secondary/50"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {ratings.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, ageRating: r }))}
+                    className={cn(
+                      "rounded-2xl px-3 py-1.5 text-xs capitalize",
+                      form.ageRating === r
+                        ? "trace-gradient text-primary-foreground"
+                        : "bg-secondary/50 text-muted-foreground",
+                    )}
+                  >
+                    {r.replace("-", " ")}
+                  </button>
+                ))}
+              </div>
+              <Button
+                variant="secondary"
+                className="w-full rounded-2xl"
+                disabled={save.isPending}
+                onClick={() => save.mutate()}
+              >
+                {save.isPending ? "Saving…" : "Save details"}
+              </Button>
+            </div>
+          </section>
+
+          <section className="mt-7 px-4">
+            <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+              <BookOpen className="size-4 text-primary" /> Reader preview
+            </h2>
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {book.chapters.map((c, i) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setChapterIdx(i)}
+                  className={cn(
+                    "shrink-0 rounded-2xl px-3 py-1.5 text-xs",
+                    i === chapterIdx
+                      ? "trace-gradient text-primary-foreground"
+                      : "bg-secondary/50 text-muted-foreground",
+                  )}
+                >
+                  {c.idx}. {c.title.slice(0, 22)}
+                </button>
+              ))}
+            </div>
+            {chapter ? (
+              <article
+                className="glass mt-3 max-h-[60vh] overflow-y-auto rounded-3xl p-5"
+                style={{ fontFamily: "var(--font-reading)" }}
+              >
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                  Chapter {chapter.idx} · {chapter.minutes} min
+                </p>
+                <h3 className="mt-2 font-display text-xl font-semibold">{chapter.title}</h3>
+                <div
+                  className="mt-4 space-y-4 text-[15px] leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: chapter.bodyHtml }}
+                />
+              </article>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">
+                No chapters were produced from this file.
+              </p>
+            )}
+          </section>
+
+          <section className="mt-7 px-4">
+            <div className="glass rounded-3xl p-5">
+              <p className="flex items-center gap-2 font-display text-base font-semibold">
+                <Sparkles className="size-4 text-primary" /> Ready when you are
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Publishing makes this book visible in Home, Library, Search and its Book Page.
+              </p>
+              <Button
+                className="mt-4 w-full rounded-2xl"
+                disabled={publish.isPending || !book.chapters.length}
+                onClick={() => publish.mutate()}
+              >
+                {publish.isPending ? "Publishing…" : "Publish book"}
+              </Button>
+              {note ? <p className="mt-3 text-xs text-primary">{note}</p> : null}
+            </div>
+          </section>
+        </>
+      )}
+    </Shell>
+  );
+}
