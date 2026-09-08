@@ -14,7 +14,7 @@ export interface ProcessUploadInput {
 export interface ProcessUploadResult {
   bookId: string;
   chapters: number;
-  status: "published" | "processing";
+  status: "ready" | "failed";
   message: string;
 }
 
@@ -173,7 +173,7 @@ export const processUpload = createServerFn({ method: "POST" })
     if (!isTextual) {
       const message = "Unsupported file type. Use PDF, EPUB, DOCX, TXT, Markdown or HTML.";
       await fail(message);
-      return { bookId, chapters: 0, status: "processing", message };
+      return { bookId, chapters: 0, status: "failed", message };
     }
 
     const { data: file, error: dlErr } = await supabaseAdmin.storage
@@ -193,14 +193,14 @@ export const processUpload = createServerFn({ method: "POST" })
       const message =
         err instanceof Error ? err.message : "We could not read text from this file.";
       await fail(message);
-      return { bookId, chapters: 0, status: "processing", message };
+      return { bookId, chapters: 0, status: "failed", message };
     }
 
     if (text.replace(/\s/g, "").length < 200) {
       const message =
         "No readable text found — this file may be a scanned image. Try a text-based PDF or DOCX.";
       await fail(message);
-      return { bookId, chapters: 0, status: "processing", message };
+      return { bookId, chapters: 0, status: "failed", message };
     }
 
     const chapters = toChapters(text).slice(0, 60);
