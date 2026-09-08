@@ -64,6 +64,7 @@ const pipeline = [
 function CreatePage() {
   const [kind, setKind] = useState("Book");
   const [status, setStatus] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -71,20 +72,49 @@ function CreatePage() {
   const run = useServerFn(processUpload);
   const qc = useQueryClient();
 
+  /** Upload with real byte-level progress, then hand the file to the processor. */
+  const uploadWithProgress = (file: File, path: string, token: string) =>
+    new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const base = import.meta.env["VITE_SUPABASE_URL"] as string;
+      xhr.open("POST", `${base}/storage/v1/object/book-uploads/${path}`);
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.setRequestHeader(
+        "apikey",
+        import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] as string,
+      );
+      xhr.setRequestHeader("x-upsert", "true");
+      if (file.type) xhr.setRequestHeader("Content-Type", file.type);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () =>
+        xhr.status >= 200 && xhr.status < 300
+          ? resolve()
+          : reject(new Error("We could not store your file. Please try again."));
+      xhr.onerror = () => reject(new Error("Network problem while uploading."));
+      xhr.send(file);
+    });
+
   const onFile = async (file: File) => {
     if (!user) {
       navigate({ to: "/auth" });
       return;
     }
     setBusy(true);
-    setStatus(`UPLOADED · storing ${file.name} securely…`);
+    setProgress(0);
+    setStatus(`UPLOADING · storing ${file.name} securely…`);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Please sign in again.");
+
       const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${user.id}/${Date.now()}-${safe}`;
-      const { error } = await supabase.storage.from("book-uploads").upload(path, file);
-      if (error) throw error;
+      await uploadWithProgress(file, path, token);
 
-      setStatus("EXTRACTING · building your native edition…");
+      setProgress(100);
+      setStatus("PROCESSING · extracting text and detecting chapters…");
       const res = await run({
         data: {
           path,
@@ -95,10 +125,12 @@ function CreatePage() {
           kind: kind.toLowerCase(),
         },
       });
-      setStatus(`${res.status === "published" ? "PUBLISHED" : "QUEUED"} · ${res.message}`);
       await qc.invalidateQueries({ queryKey: ["catalogue"] });
-      if (res.status === "published") {
-        navigate({ to: "/book/$bookId", params: { bookId: res.bookId } });
+      if (res.status === "ready") {
+        setStatus(`PREVIEW READY · ${res.message}`);
+        navigate({ to: "/publish/$bookId", params: { bookId: res.bookId } });
+      } else {
+        setStatus(res.message);
       }
     } catch (err) {
       setStatus(err instanceof Error ? `Upload failed — ${err.message}` : "Upload failed.");
