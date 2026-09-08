@@ -29,6 +29,10 @@ type CommunityRow = Database["public"]["Tables"]["communities"]["Row"];
 type PostRow = Database["public"]["Tables"]["posts"]["Row"];
 
 export function mapChapter(row: ChapterRow): Chapter {
+  const blocks = Array.isArray(row.blocks) ? (row.blocks as { text?: unknown }[]) : [];
+  const paragraphs = blocks
+    .map((b) => (typeof b?.text === "string" ? b.text : ""))
+    .filter((t) => t.trim().length > 0);
   return {
     id: row.id,
     index: row.idx,
@@ -36,6 +40,7 @@ export function mapChapter(row: ChapterRow): Chapter {
     minutes: row.minutes,
     discussions: row.discussions,
     excerpt: row.excerpt,
+    ...(paragraphs.length ? { paragraphs } : {}),
   };
 }
 
