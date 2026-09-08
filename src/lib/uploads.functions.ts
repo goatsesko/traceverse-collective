@@ -227,7 +227,8 @@ export const processUpload = createServerFn({ method: "POST" })
     await supabaseAdmin
       .from("books")
       .update({
-        status: "published",
+        status: "draft",
+        processing_error: null,
         summary: (chapters[0]?.paragraphs[0] ?? "").slice(0, 400),
       })
       .eq("id", bookId);
@@ -238,15 +239,15 @@ export const processUpload = createServerFn({ method: "POST" })
     await supabaseAdmin.from("notifications").insert({
       user_id: userId,
       kind: "upload",
-      title: "Your book is live",
+      title: "Your book is ready to review",
       body: `${data.title} was converted into ${rows.length} chapters.`,
-      link: `/book/${bookId}`,
+      link: `/publish/${bookId}`,
     });
 
     return {
       bookId,
       chapters: rows.length,
-      status: "published",
+      status: "ready",
       message: `Converted into ${rows.length} responsive chapters.`,
     };
   });
