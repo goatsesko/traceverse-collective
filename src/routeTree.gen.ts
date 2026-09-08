@@ -19,6 +19,7 @@ import { Route as AuthorAuthorIdRouteImport } from './routes/author.$authorId'
 import { Route as BookBookIdRouteImport } from './routes/book.$bookId'
 import { Route as CommunityIndexRouteImport } from './routes/community.index'
 import { Route as CommunityCommunityIdRouteImport } from './routes/community.$communityId'
+import { Route as PublishBookIdRouteImport } from './routes/publish.$bookId'
 import { Route as BookBookIdReadRouteImport } from './routes/book.$bookId.read'
 
 const IndexRoute = IndexRouteImport.update({
@@ -71,6 +72,11 @@ const CommunityCommunityIdRoute = CommunityCommunityIdRouteImport.update({
   path: '/community/$communityId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PublishBookIdRoute = PublishBookIdRouteImport.update({
+  id: '/publish/$bookId',
+  path: '/publish/$bookId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BookBookIdReadRoute = BookBookIdReadRouteImport.update({
   id: '/read',
   path: '/read',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/author/$authorId': typeof AuthorAuthorIdRoute
   '/book/$bookId': typeof BookBookIdRouteWithChildren
   '/community/$communityId': typeof CommunityCommunityIdRoute
+  '/publish/$bookId': typeof PublishBookIdRoute
   '/community/': typeof CommunityIndexRoute
   '/book/$bookId/read': typeof BookBookIdReadRoute
 }
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/author/$authorId': typeof AuthorAuthorIdRoute
   '/book/$bookId': typeof BookBookIdRouteWithChildren
   '/community/$communityId': typeof CommunityCommunityIdRoute
+  '/publish/$bookId': typeof PublishBookIdRoute
   '/community': typeof CommunityIndexRoute
   '/book/$bookId/read': typeof BookBookIdReadRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/author/$authorId': typeof AuthorAuthorIdRoute
   '/book/$bookId': typeof BookBookIdRouteWithChildren
   '/community/$communityId': typeof CommunityCommunityIdRoute
+  '/publish/$bookId': typeof PublishBookIdRoute
   '/community/': typeof CommunityIndexRoute
   '/book/$bookId/read': typeof BookBookIdReadRoute
 }
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/author/$authorId'
     | '/book/$bookId'
     | '/community/$communityId'
+    | '/publish/$bookId'
     | '/community/'
     | '/book/$bookId/read'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/author/$authorId'
     | '/book/$bookId'
     | '/community/$communityId'
+    | '/publish/$bookId'
     | '/community'
     | '/book/$bookId/read'
   id:
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/author/$authorId'
     | '/book/$bookId'
     | '/community/$communityId'
+    | '/publish/$bookId'
     | '/community/'
     | '/book/$bookId/read'
   fileRoutesById: FileRoutesById
@@ -169,6 +181,7 @@ export interface RootRouteChildren {
   AuthorAuthorIdRoute: typeof AuthorAuthorIdRoute
   BookBookIdRoute: typeof BookBookIdRouteWithChildren
   CommunityCommunityIdRoute: typeof CommunityCommunityIdRoute
+  PublishBookIdRoute: typeof PublishBookIdRoute
   CommunityIndexRoute: typeof CommunityIndexRoute
 }
 
@@ -244,6 +257,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommunityCommunityIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/publish/$bookId': {
+      id: '/publish/$bookId'
+      path: '/publish/$bookId'
+      fullPath: '/publish/$bookId'
+      preLoaderRoute: typeof PublishBookIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/book/$bookId/read': {
       id: '/book/$bookId/read'
       path: '/read'
@@ -276,6 +296,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthorAuthorIdRoute: AuthorAuthorIdRoute,
   BookBookIdRoute: BookBookIdRouteWithChildren,
   CommunityCommunityIdRoute: CommunityCommunityIdRoute,
+  PublishBookIdRoute: PublishBookIdRoute,
   CommunityIndexRoute: CommunityIndexRoute,
 }
 export const routeTree = rootRouteImport

@@ -38,6 +38,8 @@ export interface Chapter {
   minutes: number;
   discussions: number;
   excerpt: string;
+  /** Real extracted body text, when the chapter came from an import. */
+  paragraphs?: string[];
 }
 
 export interface Book {

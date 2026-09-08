@@ -62,13 +62,15 @@ function ReaderPage() {
   const chapter = book.chapters[index]!;
 
   /** Dynamic reading engine: layout is derived at render time, never pre-baked. */
-  const paragraphs = [
-    chapter.excerpt,
-    "The morning came the way it always did here, without asking. Somewhere behind the compound a radio argued with itself, and the water carried the sound further than it had any right to.",
-    "We had learned to measure distance in crossings rather than kilometres. Three crossings to the market. One to the school. Half a crossing to the place where the current turned and the boatman would not go.",
-    "My mother said a river remembers everything it has ever carried. I did not believe her until the year it gave something back.",
-    "By evening the light had gone the colour of old brass, and the children were counting boats instead of stars. There were fewer boats than last season. Nobody said why.",
-  ];
+  const paragraphs = chapter.paragraphs?.length
+    ? chapter.paragraphs
+    : [
+        chapter.excerpt,
+        "The morning came the way it always did here, without asking. Somewhere behind the compound a radio argued with itself, and the water carried the sound further than it had any right to.",
+        "We had learned to measure distance in crossings rather than kilometres. Three crossings to the market. One to the school. Half a crossing to the place where the current turned and the boatman would not go.",
+        "My mother said a river remembers everything it has ever carried. I did not believe her until the year it gave something back.",
+        "By evening the light had gone the colour of old brass, and the children were counting boats instead of stars. There were fewer boats than last season. Nobody said why.",
+      ];
 
   return (
     <div className={cn("min-h-screen transition-colors duration-500", themes[theme])}>
