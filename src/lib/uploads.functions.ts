@@ -56,10 +56,21 @@ function toChapters(raw: string): { title: string; paragraphs: string[] }[] {
       .map((p) => p.replace(/\n/g, " ").trim())
       .filter(Boolean);
     const first = paragraphs[0] ?? "";
-    const looksLikeHeading = /^(chapter|part|prologue|epilogue)/i.test(first) && first.length < 90;
-    const title = looksLikeHeading ? first : `Chapter ${i + 1}`;
-    if (looksLikeHeading) paragraphs.shift();
-    return { title, paragraphs: paragraphs.length ? paragraphs : [first] };
+    const headingRe = /^((?:chapter|part|prologue|epilogue)\b[^.?!]{0,60}?)(?:[.:—-]\s+|\s{2,}|\s(?=[A-Z]))/i;
+    const short = /^(chapter|part|prologue|epilogue)/i.test(first) && first.length < 90;
+    let title = `Chapter ${i + 1}`;
+    if (short) {
+      title = first;
+      paragraphs.shift();
+    } else {
+      const m = headingRe.exec(first);
+      if (m?.[1]) {
+        title = m[1].trim();
+        paragraphs[0] = first.slice(m[0].length).trim();
+      }
+    }
+    const body = paragraphs.filter(Boolean);
+    return { title, paragraphs: body.length ? body : [first] };
   });
 }
 
