@@ -17,7 +17,7 @@ import { formatCount, type Book } from "@/data/traceverse";
 import { catalogueQueryOptions } from "@/lib/catalogue-query";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/book/$bookId/read")({
+export const Route = createFileRoute("/book/$bookId_/read")({
   validateSearch: (s: Record<string, unknown>): { ch?: number } => {
     const n = Number(s["ch"]);
     return Number.isFinite(n) && n >= 1 ? { ch: Math.floor(n) } : {};
