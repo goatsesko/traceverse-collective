@@ -2,17 +2,18 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import {
   ChevronLeft,
   ChevronRight,
+  List,
   MessageCircle,
   Minus,
   Plus,
   Sparkles,
   Type,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { TraceAIPanel } from "@/components/traceverse/TraceAI";
 import { Button } from "@/components/ui/button";
-import { formatCount } from "@/data/traceverse";
+import { formatCount, type Book } from "@/data/traceverse";
 import { catalogueQueryOptions } from "@/lib/catalogue-query";
 import { cn } from "@/lib/utils";
 
@@ -37,13 +38,15 @@ export const Route = createFileRoute("/book/$bookId/read")({
         { title: `Reading ${loaderData.book.title} — TraceVerse` },
         {
           name: "description",
-          content: `Read ${loaderData.book.title} by ${loaderData.author.name} in the TraceVerse adaptive reader.`,
+          content: `Read ${loaderData.book.title} by ${loaderData.author.name} in the TraceVerse reader.`,
         },
         { property: "og:title", content: `Reading ${loaderData.book.title} — TraceVerse` },
         {
           property: "og:description",
-          content: "Adaptive typography, chapter discussions and Trace AI inside the reader.",
+          content: "Distraction-free reading with chapter discussions and Trace AI.",
         },
+        { property: "og:type", content: "book" },
+        { name: "twitter:card", content: "summary" },
       ],
     };
   },
@@ -56,88 +59,175 @@ const themes = {
   paper: "bg-[oklch(0.97_0.005_300)] text-[oklch(0.2_0.02_300)]",
 } as const;
 
+const WORDS_PER_PAGE = 260;
+
+interface ReaderPageData {
+  chapterIdx: number; // position in book.chapters
+  chapterNumber: number;
+  chapterTitle: string;
+  first: boolean; // first page of chapter
+  paragraphs: string[];
+}
+
+/** Clean raw extracted text into readable paragraphs. */
+function cleanParagraphs(raw: string[], chapterTitle: string): string[] {
+  const out: string[] = [];
+  for (const r of raw) {
+    const t = r
+      .replace(/\s+/g, " ")
+      .replace(/(\w)-\s+(\w)/g, "$1$2")
+      .replace(/\s+([,.;:!?])/g, "$1")
+      .trim();
+    if (!t) continue;
+    if (out.length === 0 && t.toLowerCase() === chapterTitle.trim().toLowerCase()) continue;
+    out.push(t);
+  }
+  return out;
+}
+
+/** Split a long paragraph at sentence boundaries so pages stay balanced. */
+function splitLong(p: string): string[] {
+  const words = p.split(" ");
+  if (words.length <= WORDS_PER_PAGE) return [p];
+  const sentences = p.match(/[^.!?]+[.!?]+["')\]]*\s*|.+$/g) ?? [p];
+  const parts: string[] = [];
+  let cur = "";
+  for (const s of sentences) {
+    if ((cur + s).split(" ").length > WORDS_PER_PAGE && cur) {
+      parts.push(cur.trim());
+      cur = "";
+    }
+    cur += s;
+  }
+  if (cur.trim()) parts.push(cur.trim());
+  return parts;
+}
+
+function paginate(book: Book): ReaderPageData[] {
+  const pages: ReaderPageData[] = [];
+  book.chapters.forEach((c, chapterIdx) => {
+    const source = c.paragraphs?.length ? c.paragraphs : c.excerpt ? [c.excerpt] : [];
+    const paras = cleanParagraphs(source, c.title).flatMap(splitLong);
+    let bucket: string[] = [];
+    let count = 0;
+    let first = true;
+    const flush = () => {
+      pages.push({
+        chapterIdx,
+        chapterNumber: c.index,
+        chapterTitle: c.title,
+        first,
+        paragraphs: bucket,
+      });
+      first = false;
+      bucket = [];
+      count = 0;
+    };
+    for (const p of paras) {
+      const w = p.split(" ").length;
+      if (count > 0 && count + w > WORDS_PER_PAGE) flush();
+      bucket.push(p);
+      count += w;
+    }
+    if (bucket.length || first) flush();
+  });
+  if (pages.length === 0 && book.summary) {
+    pages.push({
+      chapterIdx: 0,
+      chapterNumber: 1,
+      chapterTitle: book.title,
+      first: true,
+      paragraphs: cleanParagraphs([book.summary], book.title),
+    });
+  }
+  return pages;
+}
+
 function ReaderPage() {
-  const { book } = Route.useLoaderData();
+  const { book, author } = Route.useLoaderData();
   const { ch } = Route.useSearch();
-  const startIndex = Math.max(
-    0,
-    ch ? book.chapters.findIndex((c) => c.index === ch) : 0,
-  );
-  const [index, setIndex] = useState(startIndex);
-  useEffect(() => setIndex(startIndex), [book.id, startIndex]);
-  useEffect(() => {
-    window.scrollTo({ top: 0 });
-  }, [index, book.id]);
+  const pages = useMemo(() => paginate(book), [book]);
+
+  const startPage = useMemo(() => {
+    if (!ch) return 0;
+    const i = pages.findIndex((p) => p.chapterNumber === ch);
+    return i < 0 ? 0 : i;
+  }, [ch, pages]);
+
+  const [page, setPage] = useState(startPage);
   const [fontSize, setFontSize] = useState(19);
   const [theme, setTheme] = useState<keyof typeof themes>("oled");
   const [controls, setControls] = useState(true);
+  const [toc, setToc] = useState(false);
 
-  const chapter = book.chapters[index] ?? {
-    id: "empty",
-    index: 1,
-    title: book.title,
-    minutes: 1,
-    discussions: 0,
-    excerpt: book.summary,
-    paragraphs: [book.summary],
-  };
-  const total = Math.max(1, book.chapters.length);
+  useEffect(() => setPage(startPage), [book.id, startPage]);
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [page, book.id]);
 
-  /** Dynamic reading engine: layout is derived at render time, never pre-baked. */
-  const paragraphs = chapter.paragraphs?.length
-    ? chapter.paragraphs
-    : [
-        chapter.excerpt,
-        "The morning came the way it always did here, without asking. Somewhere behind the compound a radio argued with itself, and the water carried the sound further than it had any right to.",
-        "We had learned to measure distance in crossings rather than kilometres. Three crossings to the market. One to the school. Half a crossing to the place where the current turned and the boatman would not go.",
-        "My mother said a river remembers everything it has ever carried. I did not believe her until the year it gave something back.",
-        "By evening the light had gone the colour of old brass, and the children were counting boats instead of stars. There were fewer boats than last season. Nobody said why.",
-      ];
+  const total = Math.max(1, pages.length);
+  const current = pages[page];
+  const chapter = current ? book.chapters[current.chapterIdx] : undefined;
+  const go = (n: number) => setPage(Math.max(0, Math.min(total - 1, n)));
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") setPage((p) => Math.min(total - 1, p + 1));
+      if (e.key === "ArrowLeft") setPage((p) => Math.max(0, p - 1));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [total]);
 
   return (
     <div className={cn("min-h-screen transition-colors duration-500", themes[theme])}>
+      {/* Top bar */}
       <div
         className={cn(
           "sticky top-0 z-20 glass transition-all duration-300",
           controls ? "opacity-100" : "pointer-events-none -translate-y-full opacity-0",
         )}
       >
-        <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           <Link
             to="/book/$bookId"
             params={{ bookId: book.id }}
-            className="grid size-9 place-items-center rounded-xl bg-secondary/60"
+            className="grid size-9 shrink-0 place-items-center rounded-xl bg-secondary/60"
             aria-label="Back to book page"
           >
             <ChevronLeft className="size-4" />
           </Link>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{book.title}</p>
-            <p className="truncate text-[11px] opacity-60">
-              Chapter {chapter.index} · {chapter.minutes} min left
-            </p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-sm font-semibold">{book.title}</p>
+            <p className="truncate text-[11px] opacity-60">by {author.name}</p>
           </div>
-          <div className="ml-auto flex items-center gap-1">
-            <button
-              type="button"
-              aria-label="Decrease text size"
-              onClick={() => setFontSize((f) => Math.max(15, f - 1))}
-              className="grid size-9 place-items-center rounded-xl bg-secondary/60"
-            >
-              <Minus className="size-4" />
-            </button>
-            <Type className="size-4 opacity-60" />
-            <button
-              type="button"
-              aria-label="Increase text size"
-              onClick={() => setFontSize((f) => Math.min(26, f + 1))}
-              className="grid size-9 place-items-center rounded-xl bg-secondary/60"
-            >
-              <Plus className="size-4" />
-            </button>
-          </div>
+          <button
+            type="button"
+            aria-label="Chapters"
+            onClick={() => setToc((t) => !t)}
+            className="grid size-9 place-items-center rounded-xl bg-secondary/60"
+          >
+            <List className="size-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Decrease text size"
+            onClick={() => setFontSize((f) => Math.max(15, f - 1))}
+            className="grid size-9 place-items-center rounded-xl bg-secondary/60"
+          >
+            <Minus className="size-4" />
+          </button>
+          <Type className="hidden size-4 opacity-60 sm:block" />
+          <button
+            type="button"
+            aria-label="Increase text size"
+            onClick={() => setFontSize((f) => Math.min(26, f + 1))}
+            className="grid size-9 place-items-center rounded-xl bg-secondary/60"
+          >
+            <Plus className="size-4" />
+          </button>
         </div>
-        <div className="mx-auto flex max-w-3xl gap-2 px-4 pb-3">
+        <div className="mx-auto flex max-w-2xl items-center gap-2 px-4 pb-3">
           {(Object.keys(themes) as (keyof typeof themes)[]).map((t) => (
             <button
               key={t}
@@ -151,51 +241,112 @@ function ReaderPage() {
               {t}
             </button>
           ))}
-          <div className="ml-auto h-1.5 w-24 self-center overflow-hidden rounded-full bg-secondary/60">
-            <div
-              className="h-full trace-gradient"
-              style={{ width: `${((index + 1) / total) * 100}%` }}
-            />
-          </div>
+          <span className="ml-auto text-[11px] tabular-nums opacity-60">
+            Page {page + 1} of {total}
+          </span>
         </div>
+        <div className="h-0.5 w-full bg-secondary/40">
+          <div
+            className="h-full trace-gradient transition-all duration-500"
+            style={{ width: `${((page + 1) / total) * 100}%` }}
+          />
+        </div>
+
+        {toc ? (
+          <div className="mx-auto max-h-[50vh] max-w-2xl overflow-y-auto px-4 pb-4">
+            {book.chapters.map((c, i) => {
+              const target = pages.findIndex((p) => p.chapterIdx === i);
+              const active = current?.chapterIdx === i;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  disabled={target < 0}
+                  onClick={() => {
+                    go(target);
+                    setToc(false);
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm",
+                    active ? "bg-secondary/70 font-semibold" : "hover:bg-secondary/40",
+                  )}
+                >
+                  <span className="w-6 text-xs opacity-50">{c.index}</span>
+                  <span className="truncate">{c.title}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
 
+      {/* Page */}
       <article
-        className="mx-auto max-w-3xl px-6 py-10"
+        className="mx-auto max-w-2xl px-6 pb-40 pt-10 sm:px-10"
         onClick={() => setControls((c) => !c)}
         style={{ fontFamily: "var(--font-reading)" }}
       >
-        <p className="text-xs uppercase tracking-[0.24em] opacity-50">
-          Chapter {chapter.index}
-        </p>
-        <h1 className="mt-2 font-display text-3xl font-semibold">{chapter.title}</h1>
-        <div
-          className="mt-6 space-y-5 leading-relaxed"
-          style={{ fontSize: `${fontSize}px`, lineHeight: 1.75 }}
-        >
-          {paragraphs.map((p, i) => (
-            <p key={i}>{p}</p>
-          ))}
-        </div>
+        {current ? (
+          <>
+            {current.first ? (
+              <header className="mb-8 text-center">
+                <p className="text-[11px] uppercase tracking-[0.3em] opacity-50">
+                  Chapter {current.chapterNumber}
+                </p>
+                <h1 className="mt-3 font-display text-3xl leading-tight font-semibold">
+                  {current.chapterTitle}
+                </h1>
+                <div className="mx-auto mt-5 h-px w-12 trace-gradient" />
+              </header>
+            ) : (
+              <p className="mb-6 text-center text-[11px] uppercase tracking-[0.24em] opacity-40">
+                {current.chapterTitle}
+              </p>
+            )}
+            <div
+              className="text-pretty"
+              style={{ fontSize: `${fontSize}px`, lineHeight: 1.8 }}
+            >
+              {current.paragraphs.map((p, i) => (
+                <p
+                  key={i}
+                  className={cn(
+                    "mb-5",
+                    current.first && i === 0
+                      ? "first-letter:float-left first-letter:mr-2 first-letter:font-display first-letter:text-[3.2em] first-letter:leading-[0.9] first-letter:text-primary"
+                      : i > 0 && "indent-6",
+                  )}
+                >
+                  {p}
+                </p>
+              ))}
+            </div>
+            <p className="mt-10 text-center text-xs tabular-nums opacity-40">— {page + 1} —</p>
+          </>
+        ) : (
+          <p className="py-24 text-center text-sm opacity-60">
+            This book doesn't have readable content yet.
+          </p>
+        )}
 
-        <div className="mt-10 flex items-center justify-between">
+        <div className="mt-8 flex items-center justify-between gap-3">
           <Button
             variant="secondary"
             className="rounded-2xl"
-            disabled={index === 0}
+            disabled={page === 0}
             onClick={(e) => {
               e.stopPropagation();
-              setIndex((i) => Math.max(0, i - 1));
+              go(page - 1);
             }}
           >
             <ChevronLeft className="size-4" /> Previous
           </Button>
           <Button
             className="rounded-2xl"
-            disabled={index >= book.chapters.length - 1}
+            disabled={page >= total - 1}
             onClick={(e) => {
               e.stopPropagation();
-              setIndex((i) => Math.min(book.chapters.length - 1, i + 1));
+              go(page + 1);
             }}
           >
             Next <ChevronRight className="size-4" />
@@ -203,19 +354,23 @@ function ReaderPage() {
         </div>
       </article>
 
+      {/* Bottom actions */}
       <div
         className={cn(
-          "fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-5 transition-all duration-300",
+          "fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 transition-all duration-300",
           controls ? "opacity-100" : "pointer-events-none translate-y-full opacity-0",
         )}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 1.25rem)" }}
       >
         <div className="glass flex w-full max-w-md items-center gap-2 rounded-3xl p-2 shadow-float">
           <Button variant="ghost" className="flex-1 rounded-2xl text-xs">
             <MessageCircle className="size-4" />
-            {formatCount(chapter.discussions)} discussing Ch. {chapter.index}
+            {chapter
+              ? `${formatCount(chapter.discussions)} discussing Ch. ${chapter.index}`
+              : "Discussions"}
           </Button>
           <TraceAIPanel
-            context={`${book.title} · Chapter ${chapter.index}`}
+            context={`${book.title}${current ? ` · Chapter ${current.chapterNumber}` : ""}`}
             suggestions={[
               "Summarise this chapter",
               "What happened before this?",
