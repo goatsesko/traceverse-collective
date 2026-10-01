@@ -8,7 +8,7 @@ import {
   Sparkles,
   Type,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { TraceAIPanel } from "@/components/traceverse/TraceAI";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,10 @@ import { catalogueQueryOptions } from "@/lib/catalogue-query";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/book/$bookId/read")({
+  validateSearch: (s: Record<string, unknown>): { ch?: number } => {
+    const n = Number(s["ch"]);
+    return Number.isFinite(n) && n >= 1 ? { ch: Math.floor(n) } : {};
+  },
   loader: async ({ context, params }) => {
     const catalogue = await context.queryClient.ensureQueryData(catalogueQueryOptions);
     const book = catalogue.books.find((b) => b.id === params.bookId);
@@ -54,12 +58,30 @@ const themes = {
 
 function ReaderPage() {
   const { book } = Route.useLoaderData();
-  const [index, setIndex] = useState(0);
+  const { ch } = Route.useSearch();
+  const startIndex = Math.max(
+    0,
+    ch ? book.chapters.findIndex((c) => c.index === ch) : 0,
+  );
+  const [index, setIndex] = useState(startIndex);
+  useEffect(() => setIndex(startIndex), [book.id, startIndex]);
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+  }, [index, book.id]);
   const [fontSize, setFontSize] = useState(19);
   const [theme, setTheme] = useState<keyof typeof themes>("oled");
   const [controls, setControls] = useState(true);
 
-  const chapter = book.chapters[index]!;
+  const chapter = book.chapters[index] ?? {
+    id: "empty",
+    index: 1,
+    title: book.title,
+    minutes: 1,
+    discussions: 0,
+    excerpt: book.summary,
+    paragraphs: [book.summary],
+  };
+  const total = Math.max(1, book.chapters.length);
 
   /** Dynamic reading engine: layout is derived at render time, never pre-baked. */
   const paragraphs = chapter.paragraphs?.length
@@ -132,7 +154,7 @@ function ReaderPage() {
           <div className="ml-auto h-1.5 w-24 self-center overflow-hidden rounded-full bg-secondary/60">
             <div
               className="h-full trace-gradient"
-              style={{ width: `${((index + 1) / book.chapters.length) * 100}%` }}
+              style={{ width: `${((index + 1) / total) * 100}%` }}
             />
           </div>
         </div>
@@ -170,7 +192,7 @@ function ReaderPage() {
           </Button>
           <Button
             className="rounded-2xl"
-            disabled={index === book.chapters.length - 1}
+            disabled={index >= book.chapters.length - 1}
             onClick={(e) => {
               e.stopPropagation();
               setIndex((i) => Math.min(book.chapters.length - 1, i + 1));
