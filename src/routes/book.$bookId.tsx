@@ -104,7 +104,7 @@ function BookPage() {
 
         <div className="mt-5 flex flex-wrap gap-2">
           <Button className="rounded-2xl shadow-glow" asChild>
-            <Link to="/book/$bookId/read" params={{ bookId: book.id }}>
+            <Link to="/book/$bookId/read" params={{ bookId: book.id }} search={{}}>
               <BookOpen className="size-4" /> Read now
             </Link>
           </Button>
@@ -180,6 +180,7 @@ function BookPage() {
                 key={c.id}
                 to="/book/$bookId/read"
                 params={{ bookId: book.id }}
+                search={{ ch: c.index }}
                 className="glass flex items-center gap-3 rounded-2xl p-3.5 transition-colors hover:bg-secondary/40"
               >
                 <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-secondary/70 text-xs font-semibold">
