@@ -183,7 +183,7 @@ function ReaderPending() {
   );
 }
 
-function ReaderError({ error, reset }: { error: Error; reset: () => void }) {
+function ReaderError({ error, reset }: ErrorComponentProps) {
   return (
     <div className="grid min-h-screen place-items-center bg-background px-6 text-center text-foreground">
       <div>
