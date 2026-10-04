@@ -31,7 +31,13 @@ export interface Author {
   works: string[];
 }
 
+export type SectionKind =
+  | "front" | "dedication" | "epigraph" | "preface" | "introduction" | "prologue"
+  | "part" | "chapter" | "epilogue" | "afterword" | "endnotes";
+
 export interface Chapter {
+  /** Semantic role in the book's structure (defaults to "chapter"). */
+  section?: SectionKind;
   id: string;
   index: number;
   title: string;

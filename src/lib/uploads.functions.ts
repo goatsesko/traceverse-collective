@@ -18,60 +18,10 @@ export interface ProcessUploadResult {
   message: string;
 }
 
-const TEXTUAL = /\.(txt|md|markdown|html?|htm)$/i;
 
-function stripHtml(input: string): string {
-  return input
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+\n/g, "\n");
-}
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-/** Split raw text into TraceVerse chapters (headings first, then size buckets). */
-function toChapters(raw: string): { title: string; paragraphs: string[] }[] {
-  const text = raw.replace(/\r/g, "").trim();
-  const headingSplit = text.split(/\n(?=\s*(?:chapter|CHAPTER|Chapter)\s+[\dIVXLC]+\b.*)/);
-  const parts =
-    headingSplit.length > 1
-      ? headingSplit
-      : (() => {
-          const paras = text.split(/\n{2,}/).filter((p) => p.trim());
-          const perChapter = Math.max(6, Math.ceil(paras.length / 12));
-          const out: string[] = [];
-          for (let i = 0; i < paras.length; i += perChapter) {
-            out.push(paras.slice(i, i + perChapter).join("\n\n"));
-          }
-          return out.length ? out : [text];
-        })();
-
-  return parts.map((part, i) => {
-    const paragraphs = part
-      .split(/\n{2,}/)
-      .map((p) => p.replace(/\n/g, " ").trim())
-      .filter(Boolean);
-    const first = paragraphs[0] ?? "";
-    const headingRe = /^((?:chapter|part|prologue|epilogue)\b[^.?!]{0,60}?)(?:[.:—-]\s+|\s{2,}|\s(?=[A-Z]))/i;
-    const short = /^(chapter|part|prologue|epilogue)/i.test(first) && first.length < 90;
-    let title = `Chapter ${i + 1}`;
-    if (short) {
-      title = first;
-      paragraphs.shift();
-    } else {
-      const m = headingRe.exec(first);
-      if (m?.[1]) {
-        title = m[1].trim();
-        paragraphs[0] = first.slice(m[0].length).trim();
-      }
-    }
-    const body = paragraphs.filter(Boolean);
-    return { title, paragraphs: body.length ? body : [first] };
-  });
 }
 
 /**
@@ -214,7 +164,8 @@ export const processUpload = createServerFn({ method: "POST" })
       return { bookId, chapters: 0, status: "failed", message };
     }
 
-    const chapters = toChapters(text).slice(0, 60);
+    const { structureManuscript } = await import("./structure.server");
+    const chapters = structureManuscript(text, data.title.trim()).slice(0, 80);
 
     const rows = chapters.map((c, i) => {
       const words = c.paragraphs.join(" ").split(/\s+/).length;
@@ -226,7 +177,10 @@ export const processUpload = createServerFn({ method: "POST" })
         discussions: 0,
         excerpt: (c.paragraphs[0] ?? "").slice(0, 240),
         body_html: c.paragraphs.map((p) => `<p>${esc(p)}</p>`).join("\n"),
-        blocks: c.paragraphs.map((p) => ({ type: "paragraph", text: p })),
+        blocks: [
+          { type: "section", section: c.section },
+          ...c.paragraphs.map((p) => ({ type: "paragraph", text: p })),
+        ],
       };
     });
 

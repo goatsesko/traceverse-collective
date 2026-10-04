@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
-import type { Author, Book, Chapter, Community, FeedPost } from "@/data/traceverse";
+import type { Author, Book, Chapter, Community, FeedPost, SectionKind } from "@/data/traceverse";
 
 /** Publishable-key Supabase client for public catalogue reads (RLS as anon). */
 export function publicClient() {
@@ -29,10 +29,22 @@ type CommunityRow = Database["public"]["Tables"]["communities"]["Row"];
 type PostRow = Database["public"]["Tables"]["posts"]["Row"];
 
 export function mapChapter(row: ChapterRow): Chapter {
-  const blocks = Array.isArray(row.blocks) ? (row.blocks as { text?: unknown }[]) : [];
-  const paragraphs = blocks
+  const blocks = Array.isArray(row.blocks)
+    ? (row.blocks as { type?: unknown; text?: unknown; section?: unknown }[])
+    : [];
+  const sectionBlock = blocks.find((b) => b?.type === "section");
+  const section = typeof sectionBlock?.section === "string" ? (sectionBlock.section as SectionKind) : undefined;
+  let paragraphs = blocks
     .map((b) => (typeof b?.text === "string" ? b.text : ""))
     .filter((t) => t.trim().length > 0);
+  if (!paragraphs.length && row.body_html) {
+    paragraphs = row.body_html
+      .split(/<\/p>|<br\s*\/?>|\n{2,}/i)
+      .map((p) =>
+        p.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim(),
+      )
+      .filter(Boolean);
+  }
   return {
     id: row.id,
     index: row.idx,
@@ -41,6 +53,7 @@ export function mapChapter(row: ChapterRow): Chapter {
     discussions: row.discussions,
     excerpt: row.excerpt,
     ...(paragraphs.length ? { paragraphs } : {}),
+    ...(section ? { section } : {}),
   };
 }
 
