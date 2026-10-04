@@ -188,7 +188,7 @@ function ReaderError({ error, reset }: ErrorComponentProps) {
     <div className="grid min-h-screen place-items-center bg-background px-6 text-center text-foreground">
       <div>
         <p className="font-display text-xl font-semibold">We couldn't open this book</p>
-        <p className="mt-2 text-sm opacity-60">{error?.message || "Something went wrong."}</p>
+        <p className="mt-2 text-sm opacity-60">{(error as Error)?.message || "Something went wrong."}</p>
         <div className="mt-6 flex justify-center gap-2">
           <Button className="rounded-2xl" onClick={() => reset()}>Try again</Button>
           <Button variant="secondary" className="rounded-2xl" asChild>
