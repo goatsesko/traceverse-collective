@@ -50,6 +50,10 @@ export const Route = createFileRoute("/book/$bookId_/read")({
       ],
     };
   },
+  pendingComponent: ReaderPending,
+  pendingMs: 0,
+  errorComponent: ReaderError,
+  notFoundComponent: ReaderNotFound,
   component: ReaderPage,
 });
 
@@ -164,6 +168,52 @@ function paginate(book: Book): ReaderPageData[] {
   return pages;
 }
 
+function ReaderPending() {
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto max-w-2xl animate-pulse space-y-4 px-6 pt-24">
+        <div className="mx-auto h-3 w-24 rounded bg-secondary/60" />
+        <div className="mx-auto h-7 w-2/3 rounded bg-secondary/60" />
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="h-4 rounded bg-secondary/40" />
+        ))}
+        <p className="pt-6 text-center text-xs opacity-50">Opening your book…</p>
+      </div>
+    </div>
+  );
+}
+
+function ReaderError({ error, reset }: { error: Error; reset: () => void }) {
+  return (
+    <div className="grid min-h-screen place-items-center bg-background px-6 text-center text-foreground">
+      <div>
+        <p className="font-display text-xl font-semibold">We couldn't open this book</p>
+        <p className="mt-2 text-sm opacity-60">{error?.message || "Something went wrong."}</p>
+        <div className="mt-6 flex justify-center gap-2">
+          <Button className="rounded-2xl" onClick={() => reset()}>Try again</Button>
+          <Button variant="secondary" className="rounded-2xl" asChild>
+            <Link to="/library">Library</Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReaderNotFound() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-background px-6 text-center text-foreground">
+      <div>
+        <p className="font-display text-xl font-semibold">This book isn't available</p>
+        <p className="mt-2 text-sm opacity-60">It may be unpublished or removed.</p>
+        <Button variant="secondary" className="mt-6 rounded-2xl" asChild>
+          <Link to="/library">Back to Library</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function ReaderPage() {
   const { book, author } = Route.useLoaderData();
   const { ch } = Route.useSearch();
@@ -171,10 +221,10 @@ function ReaderPage() {
   const tocLabels = useMemo(() => sectionLabels(book), [book]);
 
   const startPage = useMemo(() => {
-    // Read Now (no ch) opens Chapter 1, Page 1 — front matter stays reachable via contents.
-    const i = ch
-      ? pages.findIndex((p) => p.chapterNumber === ch)
-      : pages.findIndex((p) => p.isChapter);
+    // No ch → Chapter 1, Page 1 (first chapter with idx 1, else first chapter page).
+    let i = ch ? pages.findIndex((p) => p.chapterNumber === ch) : -1;
+    if (i < 0) i = pages.findIndex((p) => p.chapterNumber === 1 && p.first);
+    if (i < 0) i = pages.findIndex((p) => p.isChapter);
     return i < 0 ? 0 : i;
   }, [ch, pages]);
 
@@ -331,6 +381,11 @@ function ReaderPage() {
               className="text-pretty"
               style={{ fontSize: `${fontSize}px`, lineHeight: 1.8 }}
             >
+              {current.paragraphs.length === 0 ? (
+                <p className="py-16 text-center text-sm opacity-60">
+                  This section has no readable text yet. Use Next or the chapter list to continue.
+                </p>
+              ) : null}
               {current.paragraphs.map((p, i) => (
                 <p
                   key={i}
