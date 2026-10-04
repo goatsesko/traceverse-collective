@@ -65,6 +65,8 @@ interface ReaderPageData {
   chapterIdx: number; // position in book.chapters
   chapterNumber: number;
   chapterTitle: string;
+  label: string; // "Chapter 3", "Preface", ...
+  isChapter: boolean;
   first: boolean; // first page of chapter
   paragraphs: string[];
 }
@@ -103,8 +105,23 @@ function splitLong(p: string): string[] {
   return parts;
 }
 
+const SECTION_LABELS: Record<string, string> = {
+  front: "Front Matter", dedication: "Dedication", epigraph: "Epigraph", preface: "Preface",
+  introduction: "Introduction", prologue: "Prologue", part: "Part", epilogue: "Epilogue",
+  afterword: "Afterword", endnotes: "Ending Matter",
+};
+
+/** Display labels following the book's real structure. */
+function sectionLabels(book: Book): string[] {
+  let n = 0;
+  return book.chapters.map((c) =>
+    !c.section || c.section === "chapter" ? `Chapter ${++n}` : (SECTION_LABELS[c.section] ?? "Section"),
+  );
+}
+
 function paginate(book: Book): ReaderPageData[] {
   const pages: ReaderPageData[] = [];
+  const labels = sectionLabels(book);
   book.chapters.forEach((c, chapterIdx) => {
     const source = c.paragraphs?.length ? c.paragraphs : c.excerpt ? [c.excerpt] : [];
     const paras = cleanParagraphs(source, c.title).flatMap(splitLong);
@@ -116,6 +133,8 @@ function paginate(book: Book): ReaderPageData[] {
         chapterIdx,
         chapterNumber: c.index,
         chapterTitle: c.title,
+        label: labels[chapterIdx] ?? "",
+        isChapter: !c.section || c.section === "chapter",
         first,
         paragraphs: bucket,
       });
@@ -136,6 +155,8 @@ function paginate(book: Book): ReaderPageData[] {
       chapterIdx: 0,
       chapterNumber: 1,
       chapterTitle: book.title,
+      label: "Chapter 1",
+      isChapter: true,
       first: true,
       paragraphs: cleanParagraphs([book.summary], book.title),
     });
@@ -147,10 +168,13 @@ function ReaderPage() {
   const { book, author } = Route.useLoaderData();
   const { ch } = Route.useSearch();
   const pages = useMemo(() => paginate(book), [book]);
+  const tocLabels = useMemo(() => sectionLabels(book), [book]);
 
   const startPage = useMemo(() => {
-    if (!ch) return 0;
-    const i = pages.findIndex((p) => p.chapterNumber === ch);
+    // Read Now (no ch) opens Chapter 1, Page 1 — front matter stays reachable via contents.
+    const i = ch
+      ? pages.findIndex((p) => p.chapterNumber === ch)
+      : pages.findIndex((p) => p.isChapter);
     return i < 0 ? 0 : i;
   }, [ch, pages]);
 
@@ -271,7 +295,7 @@ function ReaderPage() {
                     active ? "bg-secondary/70 font-semibold" : "hover:bg-secondary/40",
                   )}
                 >
-                  <span className="w-6 text-xs opacity-50">{c.index}</span>
+                  <span className="w-24 shrink-0 text-xs opacity-50">{tocLabels[i]}</span>
                   <span className="truncate">{c.title}</span>
                 </button>
               );
@@ -291,7 +315,7 @@ function ReaderPage() {
             {current.first ? (
               <header className="mb-8 text-center">
                 <p className="text-[11px] uppercase tracking-[0.3em] opacity-50">
-                  Chapter {current.chapterNumber}
+                  {current.label}
                 </p>
                 <h1 className="mt-3 font-display text-3xl leading-tight font-semibold">
                   {current.chapterTitle}
@@ -370,7 +394,7 @@ function ReaderPage() {
               : "Discussions"}
           </Button>
           <TraceAIPanel
-            context={`${book.title}${current ? ` · Chapter ${current.chapterNumber}` : ""}`}
+            context={`${book.title}${current ? ` · ${current.label}` : ""}`}
             suggestions={[
               "Summarise this chapter",
               "What happened before this?",
