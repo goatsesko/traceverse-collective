@@ -134,9 +134,6 @@ export function structureManuscript(raw: string, bookTitle: string): StructuredS
 
   // No chapter headings found: split body into balanced reading units.
   if (!kept.some((k) => k.section === "chapter")) {
-    const front = kept.filter((k) => k.section !== "front" && k.section !== "endnotes" && k.section !== "epilogue" && k.section !== "afterword");
-    const before = kept.filter((k) => front.includes(k) && k.section !== "prologue" && k.section !== "introduction" ? false : false);
-    void before;
     const bodySrc = kept.find((k) => k.section === "front") ?? kept[kept.length - 1];
     const others = kept.filter((k) => k !== bodySrc);
     const paras = bodySrc?.paragraphs ?? toParagraphs(lines.join("\n"));
