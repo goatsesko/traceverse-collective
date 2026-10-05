@@ -39,20 +39,15 @@ function classify(line: string): SectionKind | "skip" | null {
   return null;
 }
 
-/** Remove page numbers, repeated running headers/footers, broken hyphenation. */
+/** Remove layout-only page furniture without rewriting manuscript words. */
 function cleanText(raw: string): string[] {
   let lines = raw.replace(/\r/g, "").replace(/\u00ad/g, "").split("\n");
-  const counts = new Map<string, number>();
-  for (const l of lines) {
-    const k = l.trim();
-    if (k && k.length < 60 && !classify(k)) counts.set(k, (counts.get(k) ?? 0) + 1);
-  }
   lines = lines.filter((l) => {
     const k = l.trim();
     if (/^(page\s*)?\d{1,4}$/i.test(k)) return false;
-    return !(k && (counts.get(k) ?? 0) >= 4);
+    return true;
   });
-  return lines.join("\n").replace(/(\w)-\n(\w)/g, "$1$2").replace(/[ \t]+/g, " ").split("\n");
+  return lines.join("\n").replace(/[ \t]+/g, " ").split("\n");
 }
 
 function toParagraphs(text: string): string[] {
@@ -63,7 +58,7 @@ function toParagraphs(text: string): string[] {
   const out: string[] = [];
   for (const p of raw) {
     const prev = out[out.length - 1];
-    // Merge fragments split mid-sentence by page breaks.
+    // Joining wrapped lines changes layout only; every extracted character stays intact.
     if (prev && !/[.!?:"”')\]]$/.test(prev) && /^[a-z(,;]/.test(p)) out[out.length - 1] = `${prev} ${p}`;
     else out.push(p);
   }
@@ -109,13 +104,13 @@ export function structureManuscript(raw: string, bookTitle: string): StructuredS
     const s = segs[i]!;
     if (s.section === "skip") continue;
     const len = sized(s);
-    // Table-of-contents remnants: headings with no body of their own.
-    if (s.section === "chapter" && len < 80) continue;
+    // Table-of-contents remnants have no body. Keep every authored chapter with content.
+    if (s.section === "chapter" && len === 0) continue;
     if (s.section === "part" && len < 200) {
       pendingPart = s.title;
       continue;
     }
-    if (s.section === "front" && len < 20) continue;
+    if (s.section === "front" && len === 0) continue;
     const paragraphs = toParagraphs(s.body.join("\n"));
     if (!paragraphs.length) continue;
     let title = s.title || DEFAULT_TITLES[s.section] || bookTitle;

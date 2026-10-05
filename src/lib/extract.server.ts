@@ -42,8 +42,7 @@ async function extractPdf(buffer: ArrayBuffer): Promise<string> {
   return pages
     .map((page) =>
       page
-        // de-hyphenate line breaks, keep paragraph breaks
-        .replace(/-\n/g, "")
+        // Only normalize layout whitespace. Never rewrite the author's characters or words.
         .replace(/\n{2,}/g, "\n\n")
         .replace(/([^\n.:;!?"'])\n(?=[a-z(])/g, "$1 ")
         .trim(),

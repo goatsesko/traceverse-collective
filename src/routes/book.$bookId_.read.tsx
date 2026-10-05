@@ -75,15 +75,11 @@ interface ReaderPageData {
   paragraphs: string[];
 }
 
-/** Clean raw extracted text into readable paragraphs. */
+/** Format paragraph whitespace without changing the author's words or punctuation. */
 function cleanParagraphs(raw: string[], chapterTitle: string): string[] {
   const out: string[] = [];
   for (const r of raw) {
-    const t = r
-      .replace(/\s+/g, " ")
-      .replace(/(\w)-\s+(\w)/g, "$1$2")
-      .replace(/\s+([,.;:!?])/g, "$1")
-      .trim();
+    const t = r.replace(/\s+/g, " ").trim();
     if (!t) continue;
     if (out.length === 0 && t.toLowerCase() === chapterTitle.trim().toLowerCase()) continue;
     out.push(t);

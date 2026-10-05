@@ -1,4 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
   BookOpen,
   Bookmark,
@@ -9,6 +11,8 @@ import {
   Star,
   Users,
 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import { BookCard } from "@/components/traceverse/BookCard";
 import { BookCover } from "@/components/traceverse/BookCover";
@@ -17,6 +21,8 @@ import { TraceAIPanel } from "@/components/traceverse/TraceAI";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCount } from "@/data/traceverse";
+import { useAuth } from "@/hooks/useAuth";
+import { getBookSocialState, setBookFollow } from "@/lib/book-social.functions";
 import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
 
 export const Route = createFileRoute("/book/$bookId")({
@@ -50,12 +56,62 @@ export const Route = createFileRoute("/book/$bookId")({
 
 function BookPage() {
   const { book, author } = Route.useLoaderData();
+  const navigate = Route.useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const getSocialState = useServerFn(getBookSocialState);
+  const updateFollow = useServerFn(setBookFollow);
+  const [followBusy, setFollowBusy] = useState(false);
+  const [followerCount, setFollowerCount] = useState(book.followers);
   const { books, communities } = useCatalogue();
   const community = book.communityId
     ? communities.find((c) => c.id === book.communityId)
     : undefined;
   const related = books.filter((b) => b.id !== book.id && b.genre === book.genre).slice(0, 6);
   const more = books.filter((b) => b.id !== book.id).slice(0, 6);
+  const { data: socialState } = useQuery({
+    queryKey: ["book-social", book.id, user?.id ?? "anon"],
+    queryFn: () => getSocialState({ data: { bookId: book.id } }),
+    enabled: Boolean(user),
+  });
+  const following = socialState?.following ?? false;
+
+  const toggleFollow = async () => {
+    if (!user) {
+      await navigate({ to: "/auth" });
+      return;
+    }
+    if (followBusy) return;
+    setFollowBusy(true);
+    try {
+      const result = await updateFollow({ data: { bookId: book.id, follow: !following } });
+      setFollowerCount(result.followers);
+      queryClient.setQueryData(["book-social", book.id, user.id], {
+        following: result.following,
+      });
+      await queryClient.invalidateQueries({ queryKey: catalogueQueryOptions.queryKey });
+      toast.success(result.following ? "Following this book" : "Book unfollowed");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update follow");
+    } finally {
+      setFollowBusy(false);
+    }
+  };
+
+  const shareBook = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `${book.title} by ${author.name}`, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success("Book link copied");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast.error("Could not share this book");
+    }
+  };
 
   return (
     <Shell title={book.title}>
@@ -87,7 +143,7 @@ function BookPage() {
               <span className="opacity-40">·</span>
               <span>{formatCount(book.readers)} readers</span>
               <span className="opacity-40">·</span>
-              <span>{formatCount(book.followers)} followers</span>
+              <span>{formatCount(followerCount)} followers</span>
             </p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {[book.genre, book.language, book.ageRating, `${book.year}`].map((t) => (
@@ -108,8 +164,14 @@ function BookPage() {
               <BookOpen className="size-4" /> Read now
             </Link>
           </Button>
-          <Button variant="secondary" className="rounded-2xl">
-            <Bookmark className="size-4" /> Follow
+          <Button
+            variant="secondary"
+            className="rounded-2xl"
+            disabled={followBusy}
+            onClick={() => void toggleFollow()}
+          >
+            <Bookmark className={following ? "size-4 fill-current" : "size-4"} />
+            {followBusy ? "Saving…" : following ? "Following" : "Follow"}
           </Button>
           {community ? (
             <Button variant="secondary" className="rounded-2xl" asChild>
@@ -117,8 +179,21 @@ function BookPage() {
                 <MessageCircle className="size-4" /> Discuss
               </Link>
             </Button>
-          ) : null}
-          <Button variant="ghost" size="icon" className="rounded-2xl" aria-label="Share">
+          ) : (
+            <Button variant="secondary" className="rounded-2xl" asChild>
+              <Link to="/community">
+                <MessageCircle className="size-4" /> Discuss
+              </Link>
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-2xl"
+            aria-label="Share"
+            title="Share this book"
+            onClick={() => void shareBook()}
+          >
             <Share2 className="size-4" />
           </Button>
         </div>
