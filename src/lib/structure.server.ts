@@ -42,15 +42,10 @@ function classify(line: string): SectionKind | "skip" | null {
 /** Remove layout-only page furniture without rewriting manuscript words. */
 function cleanText(raw: string): string[] {
   let lines = raw.replace(/\r/g, "").replace(/\u00ad/g, "").split("\n");
-  const counts = new Map<string, number>();
-  for (const l of lines) {
-    const k = l.trim();
-    if (k && k.length < 60 && !classify(k)) counts.set(k, (counts.get(k) ?? 0) + 1);
-  }
   lines = lines.filter((l) => {
     const k = l.trim();
     if (/^(page\s*)?\d{1,4}$/i.test(k)) return false;
-    return !(k && (counts.get(k) ?? 0) >= 4);
+    return true;
   });
   return lines.join("\n").replace(/[ \t]+/g, " ").split("\n");
 }
