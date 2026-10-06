@@ -67,6 +67,9 @@ export interface Book {
   communityId?: string;
   audiobook: boolean;
   progress?: number;
+  coverUrl?: string;
+  publisher?: string;
+  originalAuthor?: string;
 }
 
 export interface Community {
@@ -82,7 +85,18 @@ export interface Community {
 
 export interface FeedPost {
   id: string;
-  kind: "excerpt" | "quote" | "confession" | "discussion" | "comic" | "author-note";
+  kind:
+    | "excerpt"
+    | "quote"
+    | "confession"
+    | "discussion"
+    | "comic"
+    | "author-note"
+    | "recommendation"
+    | "question"
+    | "review"
+    | "reading-update"
+    | "announcement";
   author: string;
   handle: string;
   hue: number;

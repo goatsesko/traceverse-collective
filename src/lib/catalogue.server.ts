@@ -75,6 +75,9 @@ export function mapBook(row: BookRow, chapters: ChapterRow[] = []): Book {
     tags: row.tags,
     audiobook: row.audiobook,
     ...(row.community_id ? { communityId: row.community_id } : {}),
+    ...(row.cover_url ? { coverUrl: row.cover_url } : {}),
+    ...(row.publisher ? { publisher: row.publisher } : {}),
+    ...(row.original_author ? { originalAuthor: row.original_author } : {}),
     chapters: chapters
       .filter((c) => c.book_id === row.id)
       .sort((a, b) => a.idx - b.idx)
