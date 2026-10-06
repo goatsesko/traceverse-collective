@@ -145,6 +145,7 @@ export type Database = {
           audiobook: boolean
           author_id: string
           community_id: string | null
+          cover_url: string | null
           created_at: string
           followers: number
           genre: string
@@ -152,10 +153,13 @@ export type Database = {
           id: string
           kind: Database["public"]["Enums"]["content_kind"]
           language: string
+          original_author: string | null
           owner_id: string | null
           processing_error: string | null
+          publisher: string | null
           rating: number
           readers: number
+          rights_confirmed: boolean
           source_kind: string | null
           source_path: string | null
           status: Database["public"]["Enums"]["book_status"]
@@ -170,6 +174,7 @@ export type Database = {
           audiobook?: boolean
           author_id: string
           community_id?: string | null
+          cover_url?: string | null
           created_at?: string
           followers?: number
           genre?: string
@@ -177,10 +182,13 @@ export type Database = {
           id: string
           kind?: Database["public"]["Enums"]["content_kind"]
           language?: string
+          original_author?: string | null
           owner_id?: string | null
           processing_error?: string | null
+          publisher?: string | null
           rating?: number
           readers?: number
+          rights_confirmed?: boolean
           source_kind?: string | null
           source_path?: string | null
           status?: Database["public"]["Enums"]["book_status"]
@@ -195,6 +203,7 @@ export type Database = {
           audiobook?: boolean
           author_id?: string
           community_id?: string | null
+          cover_url?: string | null
           created_at?: string
           followers?: number
           genre?: string
@@ -202,10 +211,13 @@ export type Database = {
           id?: string
           kind?: Database["public"]["Enums"]["content_kind"]
           language?: string
+          original_author?: string | null
           owner_id?: string | null
           processing_error?: string | null
+          publisher?: string | null
           rating?: number
           readers?: number
+          rights_confirmed?: boolean
           source_kind?: string | null
           source_path?: string | null
           status?: Database["public"]["Enums"]["book_status"]
@@ -444,6 +456,32 @@ export type Database = {
         }
         Relationships: []
       }
+      post_saves: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_saves_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           author_name: string
@@ -515,6 +553,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_type: string
           author_id: string | null
           bio: string
           birth_year: number | null
@@ -525,10 +564,12 @@ export type Database = {
           hue: number
           id: string
           minutes_read: number
+          professional_since: string | null
           streak_days: number
           updated_at: string
         }
         Insert: {
+          account_type?: string
           author_id?: string | null
           bio?: string
           birth_year?: number | null
@@ -539,10 +580,12 @@ export type Database = {
           hue?: number
           id: string
           minutes_read?: number
+          professional_since?: string | null
           streak_days?: number
           updated_at?: string
         }
         Update: {
+          account_type?: string
           author_id?: string | null
           bio?: string
           birth_year?: number | null
@@ -553,6 +596,7 @@ export type Database = {
           hue?: number
           id?: string
           minutes_read?: number
+          professional_since?: string | null
           streak_days?: number
           updated_at?: string
         }
@@ -829,6 +873,11 @@ export type Database = {
         | "discussion"
         | "comic"
         | "author-note"
+        | "recommendation"
+        | "question"
+        | "review"
+        | "reading-update"
+        | "announcement"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -976,6 +1025,11 @@ export const Constants = {
         "discussion",
         "comic",
         "author-note",
+        "recommendation",
+        "question",
+        "review",
+        "reading-update",
+        "announcement",
       ],
     },
   },
