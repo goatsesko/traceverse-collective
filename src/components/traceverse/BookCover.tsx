@@ -6,13 +6,14 @@ interface BookCoverProps {
   hue: number;
   className?: string;
   kind?: string;
+  coverUrl?: string | null;
 }
 
 /**
  * Generated cover art. Real covers replace the gradient once the
  * Import Studio produces an ImageAsset for the book.
  */
-export function BookCover({ title, author, hue, className, kind }: BookCoverProps) {
+export function BookCover({ title, author, hue, className, kind, coverUrl }: BookCoverProps) {
   return (
     <div
       className={cn(
@@ -23,16 +24,33 @@ export function BookCover({ title, author, hue, className, kind }: BookCoverProp
         backgroundImage: `linear-gradient(150deg, oklch(0.55 0.20 ${hue}) 0%, oklch(0.32 0.14 ${hue + 22}) 55%, oklch(0.16 0.05 ${hue + 40}) 100%)`,
       }}
     >
+      {coverUrl ? (
+        <>
+          <img
+            src={coverUrl}
+            alt={`Cover of ${title}`}
+            loading="lazy"
+            className="absolute inset-0 -z-10 size-full object-cover"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-background/90 to-transparent"
+          />
+        </>
+      ) : null}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-70"
+        className={cn("pointer-events-none absolute inset-0 opacity-70", coverUrl && "hidden")}
         style={{
           backgroundImage: `radial-gradient(80% 55% at 20% 8%, oklch(1 0 0 / 26%) 0%, transparent 60%)`,
         }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-full opacity-25"
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0 h-full opacity-25",
+          coverUrl && "hidden",
+        )}
         style={{
           backgroundImage:
             "repeating-linear-gradient(115deg, oklch(1 0 0 / 12%) 0px, transparent 2px, transparent 22px)",

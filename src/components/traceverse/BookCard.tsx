@@ -19,7 +19,7 @@ export function BookCard({ book, className }: { book: Book; className?: string }
       )}
     >
       <div className="relative">
-        <BookCover title={book.title} hue={book.hue} kind={book.kind} />
+        <BookCover title={book.title} hue={book.hue} kind={book.kind} coverUrl={book.coverUrl} />
         {typeof book.progress === "number" ? (
           <div className="absolute inset-x-2 bottom-1 h-1 overflow-hidden rounded-full bg-background/40">
             <div

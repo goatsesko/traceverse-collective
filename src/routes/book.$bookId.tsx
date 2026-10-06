@@ -125,7 +125,7 @@ function BookPage() {
         />
         <div className="relative flex gap-4">
           <div className="w-32 shrink-0 sm:w-40">
-            <BookCover title={book.title} hue={book.hue} kind={book.kind} />
+            <BookCover title={book.title} hue={book.hue} kind={book.kind} coverUrl={book.coverUrl} />
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-2xl leading-tight font-semibold">{book.title}</h1>
