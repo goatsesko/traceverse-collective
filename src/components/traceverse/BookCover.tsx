@@ -6,7 +6,7 @@ interface BookCoverProps {
   hue: number;
   className?: string;
   kind?: string;
-  coverUrl?: string | null;
+  coverUrl?: string | null | undefined;
 }
 
 /**
