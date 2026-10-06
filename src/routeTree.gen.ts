@@ -21,6 +21,7 @@ import { Route as CommunityIndexRouteImport } from './routes/community.index'
 import { Route as CommunityCommunityIdRouteImport } from './routes/community.$communityId'
 import { Route as PublishBookIdRouteImport } from './routes/publish.$bookId'
 import { Route as BookBookIdReadRouteImport } from './routes/book.$bookId_.read'
+import { Route as ApiPublicCoverBookIdRouteImport } from './routes/api/public/cover.$bookId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -82,6 +83,11 @@ const BookBookIdReadRoute = BookBookIdReadRouteImport.update({
   path: '/book/$bookId/read',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCoverBookIdRoute = ApiPublicCoverBookIdRouteImport.update({
+  id: '/api/public/cover/$bookId',
+  path: '/api/public/cover/$bookId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/publish/$bookId': typeof PublishBookIdRoute
   '/community/': typeof CommunityIndexRoute
   '/book/$bookId/read': typeof BookBookIdReadRoute
+  '/api/public/cover/$bookId': typeof ApiPublicCoverBookIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByTo {
   '/publish/$bookId': typeof PublishBookIdRoute
   '/community': typeof CommunityIndexRoute
   '/book/$bookId/read': typeof BookBookIdReadRoute
+  '/api/public/cover/$bookId': typeof ApiPublicCoverBookIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/publish/$bookId': typeof PublishBookIdRoute
   '/community/': typeof CommunityIndexRoute
   '/book/$bookId_/read': typeof BookBookIdReadRoute
+  '/api/public/cover/$bookId': typeof ApiPublicCoverBookIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -141,6 +150,7 @@ export interface FileRouteTypes {
     | '/publish/$bookId'
     | '/community/'
     | '/book/$bookId/read'
+    | '/api/public/cover/$bookId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/publish/$bookId'
     | '/community'
     | '/book/$bookId/read'
+    | '/api/public/cover/$bookId'
   id:
     | '__root__'
     | '/'
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/publish/$bookId'
     | '/community/'
     | '/book/$bookId_/read'
+    | '/api/public/cover/$bookId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -184,6 +196,7 @@ export interface RootRouteChildren {
   PublishBookIdRoute: typeof PublishBookIdRoute
   CommunityIndexRoute: typeof CommunityIndexRoute
   BookBookIdReadRoute: typeof BookBookIdReadRoute
+  ApiPublicCoverBookIdRoute: typeof ApiPublicCoverBookIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookBookIdReadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cover/$bookId': {
+      id: '/api/public/cover/$bookId'
+      path: '/api/public/cover/$bookId'
+      fullPath: '/api/public/cover/$bookId'
+      preLoaderRoute: typeof ApiPublicCoverBookIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -288,6 +308,7 @@ const rootRouteChildren: RootRouteChildren = {
   PublishBookIdRoute: PublishBookIdRoute,
   CommunityIndexRoute: CommunityIndexRoute,
   BookBookIdReadRoute: BookBookIdReadRoute,
+  ApiPublicCoverBookIdRoute: ApiPublicCoverBookIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
