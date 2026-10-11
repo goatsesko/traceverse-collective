@@ -109,6 +109,79 @@ function PublishPage() {
     onError: (e: Error) => setNote(e.message),
   });
 
+  const setCoverFn = useServerFn(setCoverFromUpload);
+  const genCoverFn = useServerFn(generateCover);
+  const clearCoverFn = useServerFn(clearCover);
+
+  /** Upload the chosen image privately, then promote it to the book's cover. */
+  const onCoverFile = async (file: File) => {
+    if (!user || coverBusy) return;
+    setCoverBusy("upload");
+    setNote(null);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Please sign in again.");
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${user.id}/cover-${Date.now()}-${safe}`;
+      const base = import.meta.env["VITE_SUPABASE_URL"] as string;
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${base}/storage/v1/object/book-uploads/${path}`);
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.setRequestHeader(
+          "apikey",
+          import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] as string,
+        );
+        xhr.setRequestHeader("x-upsert", "true");
+        if (file.type) xhr.setRequestHeader("Content-Type", file.type);
+        xhr.onload = () =>
+          xhr.status >= 200 && xhr.status < 300
+            ? resolve()
+            : reject(new Error("We could not store that image."));
+        xhr.onerror = () => reject(new Error("Network problem while uploading."));
+        xhr.send(file);
+      });
+      const res = await setCoverFn({ data: { bookId, path, mime: file.type } });
+      setCoverUrl(res.coverUrl);
+      setNote("Cover updated.");
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Could not set the cover.");
+    } finally {
+      setCoverBusy(null);
+    }
+  };
+
+  const onGenerateCover = async () => {
+    if (coverBusy) return;
+    setCoverBusy("generate");
+    setNote(null);
+    try {
+      await saveFn({ data: { bookId, ...form } });
+      const res = await genCoverFn({ data: { bookId } });
+      setCoverUrl(res.coverUrl);
+      setNote("Trace AI designed your cover.");
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Could not generate a cover.");
+    } finally {
+      setCoverBusy(null);
+    }
+  };
+
+  const onClearCover = async () => {
+    if (coverBusy) return;
+    setCoverBusy("clear");
+    try {
+      await clearCoverFn({ data: { bookId } });
+      setCoverUrl(null);
+      setNote("Cover removed — the colour cover is back.");
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Could not remove the cover.");
+    } finally {
+      setCoverBusy(null);
+    }
+  };
+
   const publish = useMutation({
     mutationFn: async () => {
       await saveFn({ data: { bookId, ...form } });
