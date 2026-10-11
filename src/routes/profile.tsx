@@ -118,6 +118,15 @@ function ProfilePage() {
               {(stats?.hoursRead ?? 0) >= 100 ? "Deep Reader" : "Rising Reader"} ·{" "}
               {profile?.streakDays ?? 0} day streak
             </p>
+            <span
+              className={
+                profile?.accountType === "professional"
+                  ? "mt-1.5 inline-block rounded-full bg-primary/20 px-2 py-0.5 text-[10px] font-semibold text-primary"
+                  : "mt-1.5 inline-block rounded-full bg-secondary/60 px-2 py-0.5 text-[10px] text-muted-foreground"
+              }
+            >
+              {profile?.accountType === "professional" ? "Professional" : "Reader account"}
+            </span>
           </div>
           <Button
             variant="secondary"
@@ -247,6 +256,27 @@ function ProfilePage() {
           </p>
         )}
       </section>
+
+      {profile?.accountType !== "professional" ? (
+        <section className="mt-8 px-4">
+          <div className="glass rounded-3xl p-5">
+            <p className="flex items-center gap-2 font-display text-base font-semibold">
+              <Briefcase className="size-4 text-primary" /> Become a Professional
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Professionals can upload and publish books, stories and poems, and open communities
+              for their readers. It's free — you agree to only publish work you have the rights to.
+            </p>
+            <Button
+              className="mt-4 w-full rounded-2xl"
+              disabled={upgrade.isPending}
+              onClick={() => upgrade.mutate()}
+            >
+              {upgrade.isPending ? "Switching…" : "Switch to Professional — free"}
+            </Button>
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-8 px-4">
         <Button
