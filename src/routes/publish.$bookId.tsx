@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BookOpen, CheckCircle2, Sparkles, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { BookOpen, CheckCircle2, ImagePlus, Sparkles, Users, Wand2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { BookCover } from "@/components/traceverse/BookCover";
 import { Shell } from "@/components/traceverse/Shell";
@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { clearCover, generateCover, setCoverFromUpload } from "@/lib/covers.functions";
 import {
   createBookCommunity,
   getDraftBook,
