@@ -364,6 +364,34 @@ function PublishPage() {
                   className="rounded-2xl bg-secondary/50"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  value={form.originalAuthor}
+                  onChange={(e) => setForm((f) => ({ ...f, originalAuthor: e.target.value }))}
+                  placeholder="Original author (if not you)"
+                  className="rounded-2xl bg-secondary/50"
+                />
+                <Input
+                  value={form.publisher}
+                  onChange={(e) => setForm((f) => ({ ...f, publisher: e.target.value }))}
+                  placeholder="Publisher"
+                  className="rounded-2xl bg-secondary/50"
+                />
+              </div>
+              <label className="glass flex cursor-pointer items-start gap-3 rounded-2xl p-3.5">
+                <input
+                  type="checkbox"
+                  checked={form.rightsConfirmed}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, rightsConfirmed: e.target.checked }))
+                  }
+                  className="mt-0.5 size-4 accent-[oklch(0.55_0.2_300)]"
+                />
+                <span className="text-xs text-muted-foreground">
+                  I confirm I hold the rights to publish this work, and I credit the original
+                  author and publisher above where they are not me.
+                </span>
+              </label>
               <div className="flex flex-wrap gap-2">
                 {ratings.map((r) => (
                   <button
