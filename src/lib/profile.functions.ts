@@ -12,6 +12,7 @@ export interface DashboardPayload {
     country: string | null;
     streakDays: number;
     minutesRead: number;
+    accountType: "reader" | "professional";
   };
   stats: {
     booksRead: number;
@@ -52,6 +53,7 @@ export const getMyDashboard = createServerFn({ method: "GET" })
         country: p?.country ?? null,
         streakDays: p?.streak_days ?? 0,
         minutesRead: minutes,
+        accountType: (p?.account_type as "reader" | "professional") ?? "reader",
       },
       stats: {
         booksRead: progress.filter((r) => (r.progress ?? 0) >= 0.98).length,
@@ -115,4 +117,28 @@ export const updateMyProfile = createServerFn({ method: "POST" })
     const { error } = await context.supabase.from("profiles").update(patch).eq("id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/**
+ * Free self-upgrade to a Professional account (uploads, publishing, communities).
+ * Account type is guarded in the database, so this writes through the privileged
+ * client after the reader's session is verified.
+ */
+export const becomeProfessional = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: profile } = await context.supabase
+      .from("profiles")
+      .select("account_type")
+      .eq("id", context.userId)
+      .maybeSingle();
+    if (profile?.account_type === "professional") return { ok: true, already: true };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({ account_type: "professional", professional_since: new Date().toISOString() })
+      .eq("id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true, already: false };
   });
