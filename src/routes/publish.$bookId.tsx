@@ -249,7 +249,12 @@ function PublishPage() {
         <>
           <section className="flex gap-4 px-4 pt-5">
             <div className="w-24 shrink-0">
-              <BookCover title={form.title} author={form.authorName} hue={form.hue} />
+              <BookCover
+                title={form.title}
+                author={form.authorName}
+                hue={form.hue}
+                coverUrl={coverUrl}
+              />
             </div>
             <div className="min-w-0">
               <h1 className="font-display text-xl font-semibold">Review your import</h1>
@@ -259,21 +264,67 @@ function PublishPage() {
               {book.processingError ? (
                 <p className="mt-2 text-xs text-destructive">{book.processingError}</p>
               ) : null}
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void onCoverFile(f);
+                }}
+              />
               <div className="mt-3 flex flex-wrap gap-2">
-                {hues.map((h) => (
-                  <button
-                    key={h}
-                    type="button"
-                    aria-label={`Cover colour ${h}`}
-                    onClick={() => setForm((f) => ({ ...f, hue: h }))}
-                    className={cn(
-                      "size-7 rounded-full border",
-                      form.hue === h ? "border-primary" : "border-border",
-                    )}
-                    style={{ background: `oklch(0.55 0.2 ${h})` }}
-                  />
-                ))}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="rounded-2xl"
+                  disabled={coverBusy !== null}
+                  onClick={() => coverInputRef.current?.click()}
+                >
+                  <ImagePlus className="size-4" />
+                  {coverBusy === "upload" ? "Uploading…" : "Upload cover"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="rounded-2xl"
+                  disabled={coverBusy !== null}
+                  onClick={() => void onGenerateCover()}
+                >
+                  <Wand2 className="size-4" />
+                  {coverBusy === "generate" ? "Designing…" : "Trace AI cover"}
+                </Button>
+                {coverUrl ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-2xl text-muted-foreground"
+                    disabled={coverBusy !== null}
+                    onClick={() => void onClearCover()}
+                  >
+                    Remove
+                  </Button>
+                ) : null}
               </div>
+              {!coverUrl ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {hues.map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      aria-label={`Cover colour ${h}`}
+                      onClick={() => setForm((f) => ({ ...f, hue: h }))}
+                      className={cn(
+                        "size-7 rounded-full border",
+                        form.hue === h ? "border-primary" : "border-border",
+                      )}
+                      style={{ background: `oklch(0.55 0.2 ${h})` }}
+                    />
+                  ))}
+                </div>
+              ) : null}
             </div>
           </section>
 
