@@ -41,6 +41,18 @@ export const processUpload = createServerFn({ method: "POST" })
 
     if (!data.path.startsWith(`${userId}/`)) throw new Error("Forbidden");
 
+    // Only Professional accounts can publish uploads.
+    const { data: acct } = await supabase
+      .from("profiles")
+      .select("account_type")
+      .eq("id", userId)
+      .maybeSingle();
+    if (acct?.account_type !== "professional") {
+      throw new Error(
+        "Uploading is a Professional feature. Switch to a free Professional account on your profile to publish.",
+      );
+    }
+
     const { data: uploadRow, error: uploadErr } = await supabase
       .from("uploads")
       .insert({

@@ -24,6 +24,10 @@ export interface DraftBook {
   status: string;
   processingError: string | null;
   communityId: string | null;
+  coverUrl: string | null;
+  publisher: string | null;
+  originalAuthor: string | null;
+  rightsConfirmed: boolean;
   chapters: DraftChapter[];
 }
 
@@ -70,6 +74,10 @@ export const getDraftBook = createServerFn({ method: "GET" })
       status: book.status,
       processingError: book.processing_error,
       communityId: book.community_id,
+      coverUrl: book.cover_url,
+      publisher: book.publisher,
+      originalAuthor: book.original_author,
+      rightsConfirmed: Boolean(book.rights_confirmed),
       chapters: (chapters ?? []).map((c) => ({
         id: c.id,
         idx: c.idx,
@@ -90,6 +98,9 @@ export interface DraftMetadata {
   language: string;
   ageRating: string;
   hue: number;
+  publisher?: string;
+  originalAuthor?: string;
+  rightsConfirmed?: boolean;
 }
 
 const RATINGS = ["everyone", "teen", "young-adult", "mature"];
@@ -113,6 +124,9 @@ export const updateDraftMetadata = createServerFn({ method: "POST" })
         language: data.language.trim() || "English",
         age_rating: (RATINGS.includes(data.ageRating) ? data.ageRating : "everyone") as never,
         hue: Math.max(0, Math.min(360, Math.round(data.hue))),
+        publisher: (data.publisher ?? "").trim() || null,
+        original_author: (data.originalAuthor ?? "").trim() || null,
+        rights_confirmed: Boolean(data.rightsConfirmed),
       })
       .eq("id", data.bookId)
       .eq("owner_id", userId)
@@ -145,6 +159,16 @@ export const publishBook = createServerFn({ method: "POST" })
       .select("id", { count: "exact", head: true })
       .eq("book_id", data.bookId);
     if (!count) throw new Error("This book has no chapters to publish yet.");
+
+    const { data: current } = await supabase
+      .from("books")
+      .select("rights_confirmed")
+      .eq("id", data.bookId)
+      .eq("owner_id", userId)
+      .maybeSingle();
+    if (!current?.rights_confirmed) {
+      throw new Error("Please confirm you hold the rights to publish this work.");
+    }
 
     const { data: book, error } = await supabase
       .from("books")

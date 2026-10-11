@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { BookOpen, CheckCircle2, Sparkles, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { BookOpen, CheckCircle2, ImagePlus, Sparkles, Users, Wand2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { BookCover } from "@/components/traceverse/BookCover";
 import { Shell } from "@/components/traceverse/Shell";
@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { clearCover, generateCover, setCoverFromUpload } from "@/lib/covers.functions";
 import {
   createBookCommunity,
   getDraftBook,
@@ -66,7 +68,13 @@ function PublishPage() {
     language: "",
     ageRating: "everyone",
     hue: 280,
+    publisher: "",
+    originalAuthor: "",
+    rightsConfirmed: false,
   });
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [coverBusy, setCoverBusy] = useState<string | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const [chapterIdx, setChapterIdx] = useState(0);
   const [askCommunity, setAskCommunity] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -81,7 +89,11 @@ function PublishPage() {
       language: draft.data.language,
       ageRating: draft.data.ageRating,
       hue: draft.data.hue,
+      publisher: draft.data.publisher ?? "",
+      originalAuthor: draft.data.originalAuthor ?? "",
+      rightsConfirmed: draft.data.rightsConfirmed,
     });
+    setCoverUrl(draft.data.coverUrl);
   }, [draft.data]);
 
   useEffect(() => {
@@ -96,6 +108,79 @@ function PublishPage() {
     },
     onError: (e: Error) => setNote(e.message),
   });
+
+  const setCoverFn = useServerFn(setCoverFromUpload);
+  const genCoverFn = useServerFn(generateCover);
+  const clearCoverFn = useServerFn(clearCover);
+
+  /** Upload the chosen image privately, then promote it to the book's cover. */
+  const onCoverFile = async (file: File) => {
+    if (!user || coverBusy) return;
+    setCoverBusy("upload");
+    setNote(null);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error("Please sign in again.");
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${user.id}/cover-${Date.now()}-${safe}`;
+      const base = import.meta.env["VITE_SUPABASE_URL"] as string;
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `${base}/storage/v1/object/book-uploads/${path}`);
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        xhr.setRequestHeader(
+          "apikey",
+          import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] as string,
+        );
+        xhr.setRequestHeader("x-upsert", "true");
+        if (file.type) xhr.setRequestHeader("Content-Type", file.type);
+        xhr.onload = () =>
+          xhr.status >= 200 && xhr.status < 300
+            ? resolve()
+            : reject(new Error("We could not store that image."));
+        xhr.onerror = () => reject(new Error("Network problem while uploading."));
+        xhr.send(file);
+      });
+      const res = await setCoverFn({ data: { bookId, path, mime: file.type } });
+      setCoverUrl(res.coverUrl);
+      setNote("Cover updated.");
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Could not set the cover.");
+    } finally {
+      setCoverBusy(null);
+    }
+  };
+
+  const onGenerateCover = async () => {
+    if (coverBusy) return;
+    setCoverBusy("generate");
+    setNote(null);
+    try {
+      await saveFn({ data: { bookId, ...form } });
+      const res = await genCoverFn({ data: { bookId } });
+      setCoverUrl(res.coverUrl);
+      setNote("Trace AI designed your cover.");
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Could not generate a cover.");
+    } finally {
+      setCoverBusy(null);
+    }
+  };
+
+  const onClearCover = async () => {
+    if (coverBusy) return;
+    setCoverBusy("clear");
+    try {
+      await clearCoverFn({ data: { bookId } });
+      setCoverUrl(null);
+      setNote("Cover removed — the colour cover is back.");
+    } catch (err) {
+      setNote(err instanceof Error ? err.message : "Could not remove the cover.");
+    } finally {
+      setCoverBusy(null);
+    }
+  };
 
   const publish = useMutation({
     mutationFn: async () => {
@@ -164,7 +249,12 @@ function PublishPage() {
         <>
           <section className="flex gap-4 px-4 pt-5">
             <div className="w-24 shrink-0">
-              <BookCover title={form.title} author={form.authorName} hue={form.hue} />
+              <BookCover
+                title={form.title}
+                author={form.authorName}
+                hue={form.hue}
+                coverUrl={coverUrl}
+              />
             </div>
             <div className="min-w-0">
               <h1 className="font-display text-xl font-semibold">Review your import</h1>
@@ -174,21 +264,67 @@ function PublishPage() {
               {book.processingError ? (
                 <p className="mt-2 text-xs text-destructive">{book.processingError}</p>
               ) : null}
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void onCoverFile(f);
+                }}
+              />
               <div className="mt-3 flex flex-wrap gap-2">
-                {hues.map((h) => (
-                  <button
-                    key={h}
-                    type="button"
-                    aria-label={`Cover colour ${h}`}
-                    onClick={() => setForm((f) => ({ ...f, hue: h }))}
-                    className={cn(
-                      "size-7 rounded-full border",
-                      form.hue === h ? "border-primary" : "border-border",
-                    )}
-                    style={{ background: `oklch(0.55 0.2 ${h})` }}
-                  />
-                ))}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="rounded-2xl"
+                  disabled={coverBusy !== null}
+                  onClick={() => coverInputRef.current?.click()}
+                >
+                  <ImagePlus className="size-4" />
+                  {coverBusy === "upload" ? "Uploading…" : "Upload cover"}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="rounded-2xl"
+                  disabled={coverBusy !== null}
+                  onClick={() => void onGenerateCover()}
+                >
+                  <Wand2 className="size-4" />
+                  {coverBusy === "generate" ? "Designing…" : "Trace AI cover"}
+                </Button>
+                {coverUrl ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-2xl text-muted-foreground"
+                    disabled={coverBusy !== null}
+                    onClick={() => void onClearCover()}
+                  >
+                    Remove
+                  </Button>
+                ) : null}
               </div>
+              {!coverUrl ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {hues.map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      aria-label={`Cover colour ${h}`}
+                      onClick={() => setForm((f) => ({ ...f, hue: h }))}
+                      className={cn(
+                        "size-7 rounded-full border",
+                        form.hue === h ? "border-primary" : "border-border",
+                      )}
+                      style={{ background: `oklch(0.55 0.2 ${h})` }}
+                    />
+                  ))}
+                </div>
+              ) : null}
             </div>
           </section>
 
@@ -228,6 +364,34 @@ function PublishPage() {
                   className="rounded-2xl bg-secondary/50"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  value={form.originalAuthor}
+                  onChange={(e) => setForm((f) => ({ ...f, originalAuthor: e.target.value }))}
+                  placeholder="Original author (if not you)"
+                  className="rounded-2xl bg-secondary/50"
+                />
+                <Input
+                  value={form.publisher}
+                  onChange={(e) => setForm((f) => ({ ...f, publisher: e.target.value }))}
+                  placeholder="Publisher"
+                  className="rounded-2xl bg-secondary/50"
+                />
+              </div>
+              <label className="glass flex cursor-pointer items-start gap-3 rounded-2xl p-3.5">
+                <input
+                  type="checkbox"
+                  checked={form.rightsConfirmed}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, rightsConfirmed: e.target.checked }))
+                  }
+                  className="mt-0.5 size-4 accent-[oklch(0.55_0.2_300)]"
+                />
+                <span className="text-xs text-muted-foreground">
+                  I confirm I hold the rights to publish this work, and I credit the original
+                  author and publisher above where they are not me.
+                </span>
+              </label>
               <div className="flex flex-wrap gap-2">
                 {ratings.map((r) => (
                   <button
@@ -308,11 +472,16 @@ function PublishPage() {
               </p>
               <Button
                 className="mt-4 w-full rounded-2xl"
-                disabled={publish.isPending || !book.chapters.length}
+                disabled={publish.isPending || !book.chapters.length || !form.rightsConfirmed}
                 onClick={() => publish.mutate()}
               >
                 {publish.isPending ? "Publishing…" : "Publish book"}
               </Button>
+              {!form.rightsConfirmed ? (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Confirm the rights statement above to publish.
+                </p>
+              ) : null}
               {note ? <p className="mt-3 text-xs text-primary">{note}</p> : null}
             </div>
           </section>
