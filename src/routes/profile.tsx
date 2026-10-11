@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Award, Flame, Clock, BookOpen, Bookmark, Users, LogOut } from "lucide-react";
+import { Award, Flame, Clock, BookOpen, Bookmark, Users, LogOut, Briefcase } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { catalogueQueryOptions, useCatalogue } from "@/lib/catalogue-query";
-import { getMyDashboard, updateMyProfile } from "@/lib/profile.functions";
+import { becomeProfessional, getMyDashboard, updateMyProfile } from "@/lib/profile.functions";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -40,6 +40,7 @@ function ProfilePage() {
   const { user, loading, signOut } = useAuth();
   const fetchDashboard = useServerFn(getMyDashboard);
   const saveProfile = useServerFn(updateMyProfile);
+  const upgradeFn = useServerFn(becomeProfessional);
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
@@ -67,6 +68,15 @@ function ProfilePage() {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save profile"),
+  });
+
+  const upgrade = useMutation({
+    mutationFn: () => upgradeFn({}),
+    onSuccess: async () => {
+      toast.success("Welcome to Professional — you can now upload and publish.");
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not switch account"),
   });
 
   if (!loading && !user) {
