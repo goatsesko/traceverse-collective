@@ -68,7 +68,13 @@ function PublishPage() {
     language: "",
     ageRating: "everyone",
     hue: 280,
+    publisher: "",
+    originalAuthor: "",
+    rightsConfirmed: false,
   });
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [coverBusy, setCoverBusy] = useState<string | null>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const [chapterIdx, setChapterIdx] = useState(0);
   const [askCommunity, setAskCommunity] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -83,7 +89,11 @@ function PublishPage() {
       language: draft.data.language,
       ageRating: draft.data.ageRating,
       hue: draft.data.hue,
+      publisher: draft.data.publisher ?? "",
+      originalAuthor: draft.data.originalAuthor ?? "",
+      rightsConfirmed: draft.data.rightsConfirmed,
     });
+    setCoverUrl(draft.data.coverUrl);
   }, [draft.data]);
 
   useEffect(() => {
