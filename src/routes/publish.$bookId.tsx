@@ -472,11 +472,16 @@ function PublishPage() {
               </p>
               <Button
                 className="mt-4 w-full rounded-2xl"
-                disabled={publish.isPending || !book.chapters.length}
+                disabled={publish.isPending || !book.chapters.length || !form.rightsConfirmed}
                 onClick={() => publish.mutate()}
               >
                 {publish.isPending ? "Publishing…" : "Publish book"}
               </Button>
+              {!form.rightsConfirmed ? (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Confirm the rights statement above to publish.
+                </p>
+              ) : null}
               {note ? <p className="mt-3 text-xs text-primary">{note}</p> : null}
             </div>
           </section>
